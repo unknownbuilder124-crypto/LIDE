@@ -1,7 +1,9 @@
 #include "wm.h"
 #include <X11/XKBlib.h>
 
-void grab_keys(void) {
+void grab_keys(void) 
+
+{
     KeyCode mod4 = XKeysymToKeycode(state.display, XK_Super_L);
     if (!mod4) {
         fprintf(stderr, "Warning: Could not get Super key keycode\n");
@@ -9,25 +11,31 @@ void grab_keys(void) {
     }
     
     KeyCode return_key = XKeysymToKeycode(state.display, XK_Return);
-    if (return_key) {
+    
+    if (return_key) 
+    {
         XGrabKey(state.display, return_key, Mod4Mask, state.root, 
                 True, GrabModeAsync, GrabModeAsync);
     }
 
     KeyCode q_key = XKeysymToKeycode(state.display, XK_q);
+    
     if (q_key) {
         XGrabKey(state.display, q_key, Mod4Mask, state.root, 
                 True, GrabModeAsync, GrabModeAsync);
     }
 
     KeyCode space_key = XKeysymToKeycode(state.display, XK_space);
+    
     if (space_key) {
         XGrabKey(state.display, space_key, Mod4Mask, state.root, 
                 True, GrabModeAsync, GrabModeAsync);
     }
 }
 
-static void spawn(char *const argv[]) {
+static void spawn(char *const argv[]) 
+
+{
     if (fork() == 0) {
         setsid();
         execvp(argv[0], argv);
@@ -36,7 +44,9 @@ static void spawn(char *const argv[]) {
     }
 }
 
-static void close_window(Window w) {
+static void close_window(Window w)
+
+{
     XEvent ev;
     ev.xclient.type = ClientMessage;
     ev.xclient.window = w;
@@ -47,7 +57,9 @@ static void close_window(Window w) {
     XSendEvent(state.display, w, False, NoEventMask, &ev);
 }
 
-void handle_keypress(XKeyEvent *ev) {
+void handle_keypress(XKeyEvent *ev) 
+
+{
     KeySym keysym = XkbKeycodeToKeysym(state.display, ev->keycode, 0, 0);
     unsigned int mods = ev->state;
 
@@ -61,7 +73,7 @@ void handle_keypress(XKeyEvent *ev) {
             close_window(state.focused);
         }
     } else if (keysym == XK_space) {
-        char *const argv[] = { "/home/israfil/Desktop/LIDE/blackline-launcher", NULL };
+        char *const argv[] = { "./blackline-launcher", NULL };
         spawn(argv);
     }
 }

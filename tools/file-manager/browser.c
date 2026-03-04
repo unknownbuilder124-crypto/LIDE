@@ -1,34 +1,22 @@
 #include "fm.h"
 #include <time.h>
 
-static gchar *format_size(goffset size) {
+static gchar *format_size(goffset size) 
+{
     if (size < 1024) return g_strdup_printf("%ld B", (long)size);
     if (size < 1024 * 1024) return g_strdup_printf("%.1f KB", size / 1024.0);
     if (size < 1024 * 1024 * 1024) return g_strdup_printf("%.1f MB", size / (1024.0 * 1024.0));
     return g_strdup_printf("%.1f GB", size / (1024.0 * 1024.0 * 1024.0));
 }
 
-static gchar *format_time(GDateTime *dt) {
+static gchar *format_time(GDateTime *dt) 
+{
     return g_date_time_format(dt, "%Y-%m-%d %H:%M");
 }
 
-static void add_to_history(FileManager *fm, GFile *file) {
-    if (fm->current_dir) g_object_unref(fm->current_dir);
-    fm->current_dir = g_object_ref(file);
-    gchar *path = g_file_get_path(file);
-    gtk_entry_set_text(GTK_ENTRY(fm->location_entry), path);
-    g_free(path);
-}
-
-void fm_open_location(FileManager *fm, const gchar *path) {
-    GFile *file = g_file_new_for_path(path);
-    if (!g_file_query_exists(file, NULL)) {
-        g_object_unref(file);
-        return;
-    }
-
-    add_to_history(fm, file);
-
+// Helper function to actually load directory without history
+static void load_directory(FileManager *fm, GFile *file)
+{
     // Clear main store
     gtk_tree_store_clear(fm->main_store);
 
@@ -39,13 +27,15 @@ void fm_open_location(FileManager *fm, const gchar *path) {
         G_FILE_ATTRIBUTE_STANDARD_SIZE ","
         G_FILE_ATTRIBUTE_TIME_MODIFIED,
         G_FILE_QUERY_INFO_NONE, NULL, NULL);
+    
     if (!enumerator) {
-        g_object_unref(file);
         return;
     }
 
     GFileInfo *info;
-    while ((info = g_file_enumerator_next_file(enumerator, NULL, NULL)) != NULL) {
+    
+    while ((info = g_file_enumerator_next_file(enumerator, NULL, NULL)) != NULL) 
+    {
         const gchar *name = g_file_info_get_name(info);
         guint64 size = g_file_info_get_size(info);
         GFileType type = g_file_info_get_file_type(info);
@@ -59,6 +49,7 @@ void fm_open_location(FileManager *fm, const gchar *path) {
             case G_FILE_TYPE_SYMBOLIC_LINK: type_str = "Link"; break;
             default: type_str = "Other";
         }
+
         gchar *time_str = modified ? format_time(modified) : g_strdup("");
 
         GtkTreeIter iter;
@@ -74,14 +65,65 @@ void fm_open_location(FileManager *fm, const gchar *path) {
         g_free(time_str);
         g_object_unref(info);
     }
-    g_object_unref(enumerator);
 
-    // Update status
+    g_object_unref(enumerator);
     fm_update_status(fm);
+}
+
+static void add_to_history(FileManager *fm, GFile *file, int add_to_history_flag)
+{
+    gchar *path = g_file_get_path(file);
+    
+    if (add_to_history_flag && fm->current_dir) {
+        // If we're not at the end of history, truncate forward history
+        if (fm->history_pos && fm->history_pos->next) {
+            GList *next = fm->history_pos->next;
+            GList *tmp;
+            while (next) {
+                tmp = next->next;
+                g_object_unref(next->data);
+                g_list_free_1(next);
+                next = tmp;
+            }
+            fm->history_pos->next = NULL;
+        }
+        
+        // Add current dir to history
+        fm->history = g_list_append(fm->history, g_object_ref(fm->current_dir));
+        fm->history_pos = NULL; // Reset position to end
+    }
+    
+    // Set new current directory
+    if (fm->current_dir) g_object_unref(fm->current_dir);
+    fm->current_dir = g_object_ref(file);
+    
+    // Update location entry
+    gtk_entry_set_text(GTK_ENTRY(fm->location_entry), path);
+    g_free(path);
+    
+    // Update button states
+    gtk_widget_set_sensitive(fm->back_button, (fm->history != NULL));
+    gtk_widget_set_sensitive(fm->forward_button, (fm->history_pos && fm->history_pos->next));
+}
+
+void fm_open_location(FileManager *fm, const gchar *path) 
+{
+    GFile *file = g_file_new_for_path(path);
+    
+    if (!g_file_query_exists(file, NULL)) 
+    {
+        g_object_unref(file);
+        return;
+    }
+
+    // Add to history and load directory
+    add_to_history(fm, file, 1);
+    load_directory(fm, file);
     g_object_unref(file);
 }
 
-void fm_go_up(FileManager *fm) {
+void fm_go_up(FileManager *fm) 
+{
     if (!fm->current_dir) return;
     GFile *parent = g_file_get_parent(fm->current_dir);
     if (parent) {
@@ -92,32 +134,79 @@ void fm_go_up(FileManager *fm) {
     }
 }
 
-void fm_go_home(FileManager *fm) {
+void fm_go_home(FileManager *fm) 
+{
     const gchar *home = g_get_home_dir();
     fm_open_location(fm, home);
 }
 
-void fm_go_back(FileManager *fm) {
-    fm_go_up(fm);
+void fm_go_back(FileManager *fm) 
+{
+    if (!fm->history) return;
+    
+    // If we're at a position, move back
+    if (fm->history_pos) {
+        if (fm->history_pos->prev) {
+            fm->history_pos = fm->history_pos->prev;
+        }
+    } else {
+        // Not in history, go to last item
+        fm->history_pos = g_list_last(fm->history);
+    }
+    
+    if (fm->history_pos) {
+        GFile *file = G_FILE(fm->history_pos->data);
+        gchar *path = g_file_get_path(file);
+        
+        // Update current dir WITHOUT adding to history
+        if (fm->current_dir) g_object_unref(fm->current_dir);
+        fm->current_dir = g_object_ref(file);
+        gtk_entry_set_text(GTK_ENTRY(fm->location_entry), path);
+        load_directory(fm, file); // Just load, don't add to history
+        g_free(path);
+    }
+    
+    // Update button states
+    gtk_widget_set_sensitive(fm->back_button, (fm->history_pos && fm->history_pos->prev));
+    gtk_widget_set_sensitive(fm->forward_button, (fm->history_pos && fm->history_pos->next));
 }
 
-void fm_go_forward(FileManager *fm) {
-    // Not implemented
+void fm_go_forward(FileManager *fm) 
+{
+    if (!fm->history_pos || !fm->history_pos->next) return;
+    
+    fm->history_pos = fm->history_pos->next;
+    GFile *file = G_FILE(fm->history_pos->data);
+    gchar *path = g_file_get_path(file);
+    
+    // Update current dir WITHOUT adding to history
+    if (fm->current_dir) g_object_unref(fm->current_dir);
+    fm->current_dir = g_object_ref(file);
+    gtk_entry_set_text(GTK_ENTRY(fm->location_entry), path);
+    load_directory(fm, file); // Just load, don't add to history
+    g_free(path);
+    
+    // Update button states
+    gtk_widget_set_sensitive(fm->back_button, (fm->history_pos && fm->history_pos->prev));
+    gtk_widget_set_sensitive(fm->forward_button, (fm->history_pos && fm->history_pos->next));
 }
 
-void fm_refresh(FileManager *fm) {
+void fm_refresh(FileManager *fm) 
+{
     if (!fm->current_dir) return;
     gchar *path = g_file_get_path(fm->current_dir);
     fm_open_location(fm, path);
     g_free(path);
 }
 
-void fm_on_location_activate(FileManager *fm) {
+void fm_on_location_activate(FileManager *fm) 
+{
     const gchar *text = gtk_entry_get_text(GTK_ENTRY(fm->location_entry));
     fm_open_location(fm, text);
 }
 
-void fm_on_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn *col, FileManager *fm) {
+void fm_on_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn *col, FileManager *fm) 
+{
     GtkTreeModel *model = gtk_tree_view_get_model(tree);
     GtkTreeIter iter;
     if (!gtk_tree_model_get_iter(model, &iter, path)) return;
@@ -131,7 +220,8 @@ void fm_on_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn
     g_free(name);
 
     GFileType type = g_file_query_file_type(child, G_FILE_QUERY_INFO_NONE, NULL);
-    if (type == G_FILE_TYPE_DIRECTORY) {
+    if (type == G_FILE_TYPE_DIRECTORY) 
+    {
         gchar *child_path = g_file_get_path(child);
         fm_open_location(fm, child_path);
         g_free(child_path);
@@ -149,7 +239,8 @@ void fm_on_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn
     g_object_unref(current);
 }
 
-void fm_update_status(FileManager *fm) {
+void fm_update_status(FileManager *fm) 
+{
     if (!fm->current_dir) return;
 
     GFileInfo *info = g_file_query_filesystem_info(fm->current_dir,
@@ -168,7 +259,8 @@ void fm_update_status(FileManager *fm) {
     }
 }
 
-void fm_populate_sidebar(FileManager *fm) {
+void fm_populate_sidebar(FileManager *fm) 
+{
     gtk_list_store_clear(fm->sidebar_store);
     GtkTreeIter iter;
 
@@ -188,7 +280,8 @@ void fm_populate_sidebar(FileManager *fm) {
     gtk_list_store_set(fm->sidebar_store, &iter, 0, "Downloads", -1);
 }
 
-void fm_on_sidebar_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn *col, FileManager *fm) {
+void fm_on_sidebar_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn *col, FileManager *fm) 
+{
     GtkTreeModel *model = gtk_tree_view_get_model(tree);
     GtkTreeIter iter;
     if (!gtk_tree_model_get_iter(model, &iter, path)) return;

@@ -2,11 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void launch_app(GtkButton *button, gpointer data) {
+static void launch_app(GtkButton *button, gpointer data) 
+
+{
     system((char*)data);
 }
 
-static void activate(GtkApplication *app, gpointer user_data) {
+static void activate(GtkApplication *app, gpointer user_data) 
+
+{
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Launcher");
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 300);
@@ -23,8 +27,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
 
     GtkWidget *listbox = gtk_list_box_new();
     gtk_container_add(GTK_CONTAINER(scrolled), listbox);
-
-    // Add some basic apps
+    
+    //  apps
     const char *apps[] = {
         "Terminal", "xterm",
         "File Manager", "nautilus",
@@ -33,7 +37,9 @@ static void activate(GtkApplication *app, gpointer user_data) {
         NULL
     };
 
-    for (int i = 0; apps[i]; i += 2) {
+    for (int i = 0; apps[i]; i += 2) 
+    
+    {
         GtkWidget *row = gtk_list_box_row_new();
         GtkWidget *label = gtk_label_new(apps[i]);
         gtk_container_add(GTK_CONTAINER(row), label);
@@ -42,10 +48,13 @@ static void activate(GtkApplication *app, gpointer user_data) {
     }
 
     g_signal_connect(listbox, "row-activated", G_CALLBACK(launch_app), NULL);
+
     gtk_widget_show_all(window);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) 
+
+{
     GtkApplication *app = gtk_application_new("org.blackline.launcher", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);

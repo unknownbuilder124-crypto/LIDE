@@ -1,11 +1,12 @@
 #include "fm.h"
 
-// Dragging variables - exactly like tools_container
+// Dragging variables 
 static int is_dragging = 0;
 static int drag_start_x, drag_start_y;
 
-// Dragging functions - exactly like tools_container
+// Dragging functions 
 static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window) 
+
 {
     if (event->button == 1) 
     {
@@ -19,6 +20,7 @@ static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpoint
 }
 
 static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window) 
+
 {
     if (event->button == 1) {
         is_dragging = 0;
@@ -28,6 +30,7 @@ static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpoi
 }
 
 static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window) 
+
 {
     if (is_dragging) {
         int dx = event->x_root - drag_start_x;
@@ -45,17 +48,24 @@ static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpoin
 }
 
 // Window control callbacks
-static void on_minimize_clicked(GtkButton *button, gpointer window) {
+static void on_minimize_clicked(GtkButton *button, gpointer window) 
+
+{
     (void)button;
+    // Iconify the window - this sends the right X11 message
     gtk_window_iconify(GTK_WINDOW(window));
 }
 
-static void on_close_clicked(GtkButton *button, gpointer window) {
+static void on_close_clicked(GtkButton *button, gpointer window) 
+
+{
     (void)button;
     gtk_window_close(GTK_WINDOW(window));
 }
 
-static void activate(GtkApplication *app, gpointer user_data) {
+static void activate(GtkApplication *app, gpointer user_data) 
+
+{
     FileManager *fm = g_new(FileManager, 1);
     fm->history = NULL;
     fm->history_pos = NULL;
@@ -68,18 +78,19 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_position(GTK_WINDOW(fm->window), GTK_WIN_POS_CENTER);
     gtk_container_set_border_width(GTK_CONTAINER(fm->window), 0);
     
-    // Enable events for dragging on the WHOLE window - like tools_container
+    // Enable events for dragging 
     gtk_widget_add_events(fm->window, GDK_BUTTON_PRESS_MASK | 
                                        GDK_BUTTON_RELEASE_MASK | 
                                        GDK_POINTER_MOTION_MASK);
     
-    // Connect drag signals to the window itself - like tools_container
+    // Connect drag signals to the window itself 
     g_signal_connect(fm->window, "button-press-event", G_CALLBACK(on_button_press), fm->window);
     g_signal_connect(fm->window, "button-release-event", G_CALLBACK(on_button_release), fm->window);
     g_signal_connect(fm->window, "motion-notify-event", G_CALLBACK(on_motion_notify), fm->window);
 
     // Apply CSS for black background and red accents
     GtkCssProvider *provider = gtk_css_provider_new();
+
     gtk_css_provider_load_from_data(provider,
         "window { background-color: #000000; color: #ffffff; }\n"
         "treeview { background-color: #1a1a1a; color: #ffffff; }\n"
@@ -90,6 +101,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
         "statusbar { background-color: #1a1a1a; color: #ffffff; border-top: 1px solid #ff3333; }\n"
         "scrolledwindow { border: 1px solid #ff3333; }\n",
         -1, NULL);
+
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
@@ -222,7 +234,9 @@ static void activate(GtkApplication *app, gpointer user_data) {
     g_object_set_data_full(G_OBJECT(fm->window), "fm", fm, g_free);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) 
+
+{
     GtkApplication *app = gtk_application_new("org.blackline.filemanager", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);

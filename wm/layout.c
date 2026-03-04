@@ -1,6 +1,8 @@
 #include "wm.h"
 
-Window create_titlebar(Window client, int width) {
+Window create_titlebar(Window client, int width) 
+
+{
     (void)client;
     XSetWindowAttributes attr;
     attr.background_pixel = 0x0b0f14;
@@ -16,7 +18,9 @@ Window create_titlebar(Window client, int width) {
     return titlebar;
 }
 
-void add_window(Window w) {
+void add_window(Window w) 
+
+{
     XWindowAttributes attrs;
     XGetWindowAttributes(state.display, w, &attrs);
     
@@ -38,10 +42,13 @@ void add_window(Window w) {
     set_border(w, 0);
 }
 
-void remove_window(Window w) {
+void remove_window(Window w) 
+
+{
     WindowNode **p = &state.windows;
     while (*p) {
-        if ((*p)->window == w) {
+        if ((*p)->window == w) 
+        {
             WindowNode *tmp = *p;
             *p = (*p)->next;
             XDestroyWindow(state.display, tmp->titlebar);
@@ -51,7 +58,8 @@ void remove_window(Window w) {
         p = &(*p)->next;
     }
 
-    if (state.focused == w) {
+    if (state.focused == w) 
+    {
         if (state.windows) {
             focus_window(state.windows->window);
         } else {
@@ -60,7 +68,9 @@ void remove_window(Window w) {
     }
 }
 
-void focus_window(Window w) {
+void focus_window(Window w) 
+
+{
     if (state.focused == w) return;
 
     if (state.focused) {
@@ -84,7 +94,9 @@ void focus_window(Window w) {
     }
 }
 
-void set_border(Window w, int focused) {
+void set_border(Window w, int focused)
+
+{
     unsigned long pixel = focused ? state.focused_pixel : state.unfocused_pixel;
     XSetWindowBorder(state.display, w, pixel);
     XSetWindowBorderWidth(state.display, w, BORDER_WIDTH);
@@ -99,7 +111,9 @@ void set_border(Window w, int focused) {
     }
 }
 
-void handle_button_press(XButtonEvent *ev) {
+void handle_button_press(XButtonEvent *ev)
+
+{
     // Find which window was clicked
     WindowNode *node = state.windows;
     while (node) {
@@ -119,14 +133,17 @@ void handle_button_press(XButtonEvent *ev) {
         node = node->next;
     }
     
-    // If we didn't find the window, pass the event through
+    // If window not found, pass the event through
     XAllowEvents(state.display, ReplayPointer, CurrentTime);
 }
 
-void handle_button_release(XButtonEvent *ev) {
+void handle_button_release(XButtonEvent *ev)
+
+{
     WindowNode *node = state.windows;
     while (node) {
-        if (ev->window == node->titlebar) {
+        if (ev->window == node->titlebar) 
+        {
             node->is_moving = 0;
             break;
         }
@@ -134,10 +151,13 @@ void handle_button_release(XButtonEvent *ev) {
     }
 }
 
-void handle_motion_notify(XMotionEvent *ev) {
+void handle_motion_notify(XMotionEvent *ev) 
+
+{
     WindowNode *node = state.windows;
     while (node) {
-        if (node->is_moving) {
+        if (node->is_moving)
+         {
             int dx = ev->x_root - node->move_start_x;
             int dy = ev->y_root - node->move_start_y;
             
@@ -154,7 +174,9 @@ void handle_motion_notify(XMotionEvent *ev) {
     }
 }
 
-void handle_configure_request(XConfigureRequestEvent *ev) {
+void handle_configure_request(XConfigureRequestEvent *ev) 
+
+{
     XWindowChanges changes;
     changes.x = ev->x;
     changes.y = ev->y;
@@ -166,7 +188,8 @@ void handle_configure_request(XConfigureRequestEvent *ev) {
     
     WindowNode *node = state.windows;
     while (node) {
-        if (node->window == ev->window) {
+        if (node->window == ev->window)
+        {
             node->x = ev->x;
             node->y = ev->y;
             node->width = ev->width;
@@ -181,7 +204,9 @@ void handle_configure_request(XConfigureRequestEvent *ev) {
     XConfigureWindow(state.display, ev->window, ev->value_mask, &changes);
 }
 
-void update_borders(void) {
+void update_borders(void) 
+
+{
     WindowNode *n = state.windows;
     while (n) {
         set_border(n->window, n->window == state.focused);

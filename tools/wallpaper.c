@@ -3,11 +3,14 @@
 #include <unistd.h>
 #include <string.h>
 
-int main() {
-    const char *wallpaper = "/home/israfil/Desktop/LIDE/images/wal1.png";
+int main() 
+
+{
+    const char *wallpaper = "./LIDE/images/wal1.png";
     
     // Check if file exists
-    if (access(wallpaper, F_OK) == 0) {
+    if (access(wallpaper, F_OK) == 0) 
+    {
         // Try feh
         char cmd[512];
         snprintf(cmd, sizeof(cmd), "feh --bg-scale '%s'", wallpaper);

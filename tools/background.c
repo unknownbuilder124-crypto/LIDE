@@ -5,15 +5,19 @@
 
 int running = 1;
 
-void handle_signal(int sig) {
+void handle_signal(int sig) 
+
+{
     running = 0;
 }
 
-int main() {
+int main() 
+
+{
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     
-    const char *wallpaper = "/home/israfil/Desktop/LIDE/images/wal1.png";
+    const char *wallpaper = "./images/wal1.png";
     
     printf("Background service started\n");
     

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "tools/minimized_container.h"  // Add this include
 
 static void launch_tools(GtkButton *button, gpointer data) 
 {
@@ -20,8 +21,6 @@ static void do_nothing(GtkButton *button, gpointer data)
 {
     (void)button;
     (void)data;
-    // This function intentionally does nothing
-    // BlackLine button has no action
 }
 
 static gboolean update_clock(gpointer label) 
@@ -32,7 +31,6 @@ static gboolean update_clock(gpointer label)
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     
-    // Format: "Wed 12 Mar 15:45:30"
     strftime(buffer, sizeof(buffer), "%a %d %b %H:%M:%S", timeinfo);
     gtk_label_set_text(GTK_LABEL(label), buffer);
     return G_SOURCE_CONTINUE;
@@ -40,6 +38,12 @@ static gboolean update_clock(gpointer label)
 
 static void activate(GtkApplication *app, gpointer user_data) 
 {
+    (void)app;
+    (void)user_data;
+    
+    // Initialize the minimized container
+    minimized_container_initialize();
+    
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Panel");
     gtk_window_set_default_size(GTK_WINDOW(window), -1, 35);
@@ -58,15 +62,19 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_container_add(GTK_CONTAINER(window), box);
     
-    // BlackLine button - DOES NOTHING
+    // BlackLine button
     GtkWidget *btn1 = gtk_button_new_with_label("BlackLine");
     g_signal_connect(btn1, "clicked", G_CALLBACK(do_nothing), NULL);
     gtk_box_pack_start(GTK_BOX(box), btn1, FALSE, FALSE, 0);
     
-    // Tools button - LAUNCHES TOOLS
+    // Tools button
     GtkWidget *btn2 = gtk_button_new_with_label("Tools");
     g_signal_connect(btn2, "clicked", G_CALLBACK(launch_tools), NULL);
     gtk_box_pack_start(GTK_BOX(box), btn2, FALSE, FALSE, 0);
+    
+    // Minimized Apps button (📌)
+    GtkWidget *min_btn = minimized_container_get_toggle_button();
+    gtk_box_pack_start(GTK_BOX(box), min_btn, FALSE, FALSE, 0);
     
     GtkWidget *spacer = gtk_label_new(NULL);
     gtk_box_pack_start(GTK_BOX(box), spacer, TRUE, TRUE, 0);

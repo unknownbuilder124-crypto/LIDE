@@ -9,7 +9,9 @@
 #include <pwd.h>
 #include <sys/statvfs.h>
 
-typedef struct {
+typedef struct 
+
+{
     GtkWidget *window;
     GtkWidget *location_entry;
     GtkWidget *back_button;

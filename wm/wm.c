@@ -1,11 +1,17 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>  // Added for IconicState
 #include <X11/cursorfont.h>  
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+// Atoms for window states
+static Atom wm_state;
+static Atom wm_change_state;
+
 int main(void) 
+
 {
     Display *d = XOpenDisplay(NULL);
     if (!d) 
@@ -17,30 +23,37 @@ int main(void)
     int screen = DefaultScreen(d);
     Window root = RootWindow(d, screen);
     
+    // Get atoms for window states
+    wm_state = XInternAtom(d, "WM_STATE", False);
+    wm_change_state = XInternAtom(d, "WM_CHANGE_STATE", False);
+    
     // Create and set a visible cursor
     Cursor cursor = XCreateFontCursor(d, XC_left_ptr);  
     XDefineCursor(d, root, cursor);
     
-    // Select events but DON'T override redirect for the root window
-    XSelectInput(d, root, SubstructureNotifyMask | ButtonPressMask | KeyPressMask);
+    // Select events
+    XSelectInput(d, root, SubstructureNotifyMask | SubstructureRedirectMask | 
+                        ButtonPressMask | KeyPressMask);
     
-    // Set event mask for root to allow wallpaper to show
-    XWindowAttributes attr;
-    XGetWindowAttributes(d, root, &attr);
-    XSelectInput(d, root, attr.your_event_mask | SubstructureRedirectMask);
+    XSync(d, False);
     
     XEvent ev;
+    
     while (1)
-     {
+    {
         XNextEvent(d, &ev);
         
         switch(ev.type) {
             case MapRequest: {
-                // Map the window but don't change its background
+                // Map the window
                 XMapWindow(d, ev.xmaprequest.window);
-                
-                // Raise the window but don't cover the whole screen
                 XRaiseWindow(d, ev.xmaprequest.window);
+                break;
+            }
+            
+            case UnmapNotify: {
+                // Window was unmapped (minimized)
+                // Nothing to do, just let it be unmapped
                 break;
             }
             
@@ -55,6 +68,17 @@ int main(void)
                 changes.sibling = e->above;
                 changes.stack_mode = e->detail;
                 XConfigureWindow(d, e->window, e->value_mask, &changes);
+                break;
+            }
+            
+            case ClientMessage: {
+                // Handle client messages (including minimize requests)
+                if (ev.xclient.message_type == wm_change_state) {
+                    if (ev.xclient.data.l[0] == IconicState) {
+                        // Window wants to be minimized
+                        XUnmapWindow(d, ev.xclient.window);
+                    }
+                }
                 break;
             }
             

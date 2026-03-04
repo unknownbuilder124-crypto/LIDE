@@ -10,6 +10,7 @@ static int drag_start_x, drag_start_y;
 
 // Launch functions - FIXED to launch actual programs
 static void launch_file_manager(GtkButton *button, gpointer window) 
+
 {
     (void)button;
     (void)window;
@@ -17,12 +18,13 @@ static void launch_file_manager(GtkButton *button, gpointer window)
     pid_t pid = fork();
     if (pid == 0) {
         // Child process
-        execl("/home/israfil/Desktop/LIDE/blackline-fm", "blackline-fm", NULL);
+        execl("./blackline-fm", "blackline-fm", NULL);
         exit(0);
     }
 }
 
 static void launch_text_editor(GtkButton *button, gpointer window) 
+
 {
     (void)button;
     (void)window;
@@ -30,6 +32,7 @@ static void launch_text_editor(GtkButton *button, gpointer window)
 }
 
 static void launch_calculator(GtkButton *button, gpointer window) 
+
 {
     (void)button;
     (void)window;
@@ -45,6 +48,7 @@ static void launch_system_monitor(GtkButton *button, gpointer window)
 
 // Dragging functions
 static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window) 
+
 {
     if (event->button == 1) 
     {
@@ -58,6 +62,7 @@ static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpoint
 }
 
 static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window) 
+
 {
     if (event->button == 1) {
         is_dragging = 0;
@@ -67,8 +72,10 @@ static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpoi
 }
 
 static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window) 
+
 {
-    if (is_dragging) {
+    if (is_dragging) 
+    {
         int dx = event->x_root - drag_start_x;
         int dy = event->y_root - drag_start_y;
         
@@ -84,11 +91,13 @@ static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpoin
 }
 
 static void on_close_clicked(GtkButton *button, gpointer window) 
+
 {
     gtk_window_close(GTK_WINDOW(window));
 }
 
 static void activate(GtkApplication *app, gpointer user_data) 
+
 {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Tools");
@@ -153,6 +162,7 @@ static void activate(GtkApplication *app, gpointer user_data)
 }
 
 int main(int argc, char **argv) 
+
 {
     GtkApplication *app = gtk_application_new("org.blackline.tools", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);

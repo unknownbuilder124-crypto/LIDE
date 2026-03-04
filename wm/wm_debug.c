@@ -4,7 +4,9 @@
 
 static FILE *log_file = NULL;
 
-static void log_message(const char *msg) {
+static void log_message(const char *msg) 
+
+{
     if (!log_file) return;
     time_t now = time(NULL);
     fprintf(log_file, "[%ld] %s\n", now, msg);
@@ -12,19 +14,24 @@ static void log_message(const char *msg) {
 }
 
 // Override the x_error_handler to log errors
-static int debug_error_handler(Display *d, XErrorEvent *e) {
+static int debug_error_handler(Display *d, XErrorEvent *e) 
+
+{
     char buf[1024];
     XGetErrorText(d, e->error_code, buf, sizeof(buf));
     log_message(buf);
     return 0;
 }
 
-int main(void) {
+int main(void) 
+
+{
     log_file = fopen("/tmp/blackline-wm-debug.log", "w");
     log_message("Window manager starting");
     
     state.display = XOpenDisplay(NULL);
-    if (!state.display) {
+    if (!state.display) 
+    {
         log_message("Cannot open display");
         if (log_file) fclose(log_file);
         return 1;
@@ -63,17 +70,20 @@ int main(void) {
     log_message("Keys grabbed, entering main loop");
 
     XEvent ev;
+
     while (1) {
         XNextEvent(state.display, &ev);
         // Log every 100 events to avoid log spam
         static int event_count = 0;
-        if (++event_count % 100 == 0) {
+        if (++event_count % 100 == 0)
+        {
             char buf[256];
             snprintf(buf, sizeof(buf), "Processing event type %d", ev.type);
             log_message(buf);
         }
 
-        switch (ev.type) {
+        switch (ev.type)
+        {
             case MapRequest:
                 map_request(&ev.xmaprequest);
                 break;
