@@ -18,7 +18,6 @@ typedef struct {
 
 // Initialize edit history
 static EditHistory* edit_history_new(gint max_size) 
-
 {
     EditHistory *h = g_new(EditHistory, 1);
     h->current = NULL;
@@ -31,7 +30,6 @@ static EditHistory* edit_history_new(gint max_size)
 
 // Add state to history
 static void edit_history_push(GtkTextBuffer *buffer) 
-
 {
     if (!history) {
         history = edit_history_new(50); // Max 50 undo steps
@@ -85,7 +83,6 @@ static void edit_history_push(GtkTextBuffer *buffer)
 
 // Undo operation
 void edit_undo(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -104,7 +101,6 @@ void edit_undo(GtkWidget *widget, gpointer data)
 
 // Redo operation
 void edit_redo(GtkWidget *widget, gpointer data)
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -123,7 +119,6 @@ void edit_redo(GtkWidget *widget, gpointer data)
 
 // Cut operation
 void edit_cut(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -136,7 +131,6 @@ void edit_cut(GtkWidget *widget, gpointer data)
 
 // Copy operation
 void edit_copy(GtkWidget *widget, gpointer data)
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -148,7 +142,6 @@ void edit_copy(GtkWidget *widget, gpointer data)
 
 // Paste operation
 void edit_paste(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -161,7 +154,6 @@ void edit_paste(GtkWidget *widget, gpointer data)
 
 // Delete operation
 void edit_delete(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -176,7 +168,6 @@ void edit_delete(GtkWidget *widget, gpointer data)
 
 // Select all
 void edit_select_all(GtkWidget *widget, gpointer data)
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -190,7 +181,6 @@ void edit_select_all(GtkWidget *widget, gpointer data)
 
 // Find dialog response
 static void on_find_response(GtkDialog *dialog, gint response_id, gpointer user_data) 
-
 {
     FindReplaceData *fr_data = (FindReplaceData *)user_data;
     
@@ -257,7 +247,6 @@ static void on_find_response(GtkDialog *dialog, gint response_id, gpointer user_
 
 // Find operation
 void edit_find(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -312,7 +301,6 @@ void edit_find(GtkWidget *widget, gpointer data)
 
 // Replace dialog response
 static void on_replace_response(GtkDialog *dialog, gint response_id, gpointer user_data) 
-
 {
     FindReplaceData *fr_data = (FindReplaceData *)user_data;
     
@@ -364,7 +352,6 @@ static void on_replace_response(GtkDialog *dialog, gint response_id, gpointer us
 
 // Replace operation
 void edit_replace(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -423,34 +410,49 @@ void edit_replace(GtkWidget *widget, gpointer data)
     gtk_widget_show_all(dialog);
 }
 
-// Goto line dialog response
-static void on_goto_response(GtkDialog *dialog, gint response_id, gpointer user_data) 
-
+// Callback for Enter key in Go to Line dialog
+static void on_goto_entry_activate(GtkEntry *entry, gpointer dialog) 
 {
+    (void)entry;
+    gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
+}
+
+// Goto line dialog response - FIXED VERSION
+static void on_goto_response(GtkDialog *dialog, gint response_id, gpointer user_data) 
+{
+    GtkTextView *text_view = GTK_TEXT_VIEW(user_data);
+    
     if (response_id == GTK_RESPONSE_OK) {
-        GtkTextView *text_view = GTK_TEXT_VIEW(user_data);
-        GtkTextBuffer *buffer = gtk_text_view_get_buffer(text_view);
-        
         GtkWidget *entry = g_object_get_data(G_OBJECT(dialog), "line-entry");
         const gchar *line_text = gtk_entry_get_text(GTK_ENTRY(entry));
         gint line_number = atoi(line_text);
         
         if (line_number > 0) {
-            GtkTextIter iter;
-            gtk_text_buffer_get_iter_at_line(buffer, &iter, line_number - 1);
-            gtk_text_buffer_place_cursor(buffer, &iter);
-            gtk_text_view_scroll_to_iter(text_view, &iter, 0.0, TRUE, 0.0, 0.0);
+            GtkTextBuffer *buffer = gtk_text_view_get_buffer(text_view);
+            
+            // Get the total number of lines
+            gint total_lines = gtk_text_buffer_get_line_count(buffer);
+            
+            // Clamp line number to valid range
+            if (line_number > total_lines) {
+                line_number = total_lines;
+            }
+            
+            if (line_number >= 1) {
+                GtkTextIter iter;
+                gtk_text_buffer_get_iter_at_line(buffer, &iter, line_number - 1);
+                gtk_text_buffer_place_cursor(buffer, &iter);
+                gtk_text_view_scroll_to_iter(text_view, &iter, 0.0, TRUE, 0.0, 0.0);
+            }
         }
     }
     
-    if (response_id == GTK_RESPONSE_DELETE_EVENT || response_id == GTK_RESPONSE_CLOSE) {
-        gtk_widget_destroy(GTK_WIDGET(dialog));
-    }
+    // Always destroy dialog for any response (OK, Cancel, or close)
+    gtk_widget_destroy(GTK_WIDGET(dialog));
 }
 
-// Goto line
-void edit_goto_line(GtkWidget *widget, gpointer data)
-
+// Goto line - FIXED VERSION (no lambda)
+void edit_goto_line(GtkWidget *widget, gpointer data) 
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -474,8 +476,13 @@ void edit_goto_line(GtkWidget *widget, gpointer data)
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "e.g., 42");
     gtk_box_pack_start(GTK_BOX(box), entry, FALSE, FALSE, 0);
     
-    g_object_set_data(G_OBJECT(dialog), "line-entry", entry);
+    // Connect Enter key in entry to activate Go button (using regular function, not lambda)
+    g_signal_connect(entry, "activate", G_CALLBACK(on_goto_entry_activate), dialog);
     
+    g_object_set_data(G_OBJECT(dialog), "line-entry", entry);
+    g_object_set_data(G_OBJECT(dialog), "text-view", text_view);
+    
+    // Connect dialog response
     g_signal_connect(dialog, "response", G_CALLBACK(on_goto_response), text_view);
     
     gtk_widget_show_all(dialog);
@@ -483,7 +490,6 @@ void edit_goto_line(GtkWidget *widget, gpointer data)
 
 // Toggle comment (assumes C-style comments)
 void edit_toggle_comment(GtkWidget *widget, gpointer data)
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -521,7 +527,6 @@ void edit_toggle_comment(GtkWidget *widget, gpointer data)
 
 // Indent
 void edit_indent(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -544,7 +549,6 @@ void edit_indent(GtkWidget *widget, gpointer data)
 
 // Unindent
 void edit_unindent(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -587,7 +591,6 @@ void edit_unindent(GtkWidget *widget, gpointer data)
 
 // Convert to uppercase
 void edit_to_uppercase(GtkWidget *widget, gpointer data)
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -608,7 +611,6 @@ void edit_to_uppercase(GtkWidget *widget, gpointer data)
 
 // Convert to lowercase
 void edit_to_lowercase(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -629,7 +631,6 @@ void edit_to_lowercase(GtkWidget *widget, gpointer data)
 
 // Capitalize words
 void edit_capitalize(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -660,7 +661,6 @@ void edit_capitalize(GtkWidget *widget, gpointer data)
 
 // Duplicate line
 void edit_duplicate_line(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -685,7 +685,6 @@ void edit_duplicate_line(GtkWidget *widget, gpointer data)
 
 // Delete line
 void edit_delete_line(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -707,7 +706,6 @@ void edit_delete_line(GtkWidget *widget, gpointer data)
 
 // Join lines
 void edit_join_lines(GtkWidget *widget, gpointer data)
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -742,14 +740,12 @@ void edit_join_lines(GtkWidget *widget, gpointer data)
 
 // Comparison function for sort
 static gint compare_lines(gconstpointer a, gconstpointer b) 
-
 {
     return g_strcmp0(*(const gchar**)a, *(const gchar**)b);
 }
 
 // Sort lines
 void edit_sort_lines(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -796,7 +792,8 @@ void edit_sort_lines(GtkWidget *widget, gpointer data)
 }
 
 // Draw page callback for printing
-static void on_draw_page(GtkPrintOperation *operation, GtkPrintContext *context, gint page_nr, gpointer user_data) {
+static void on_draw_page(GtkPrintOperation *operation, GtkPrintContext *context, gint page_nr, gpointer user_data) 
+{
     (void)operation;
     (void)page_nr;
     PrintData *data = (PrintData *)user_data;
@@ -859,7 +856,6 @@ static void on_draw_page(GtkPrintOperation *operation, GtkPrintContext *context,
 
 // Begin print operation - calculate pages
 static void on_begin_print_simple(GtkPrintOperation *operation, GtkPrintContext *context, gpointer user_data) 
-
 {
     PrintData *data = (PrintData *)user_data;
     
@@ -882,7 +878,6 @@ static void on_begin_print_simple(GtkPrintOperation *operation, GtkPrintContext 
 
 // Print operation
 void edit_print(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     GtkTextView *text_view = GTK_TEXT_VIEW(data);
@@ -938,7 +933,6 @@ void edit_print(GtkWidget *widget, gpointer data)
 
 // Initialize edit features
 void edit_init(GtkTextBuffer *buffer) 
-
 {
     global_buffer = buffer;
     history = edit_history_new(50);
