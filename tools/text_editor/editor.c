@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <libgen.h>
+#include "edit.h"
 
 // Dragging variables
 static int is_dragging = 0;
@@ -457,11 +458,6 @@ static void custom_file_dialog(GtkWidget *parent, DialogMode mode)
                 } else {
                     display_name = g_strdup(entry->d_name);
                     g_object_set_data(G_OBJECT(row), "is_dir", GINT_TO_POINTER(0));
-                    
-                    // For save dialog, still show files but mark them as not directories
-                    if (mode == DIALOG_MODE_SAVE) {
-                        // Still show files in save dialog for reference
-                    }
                 }
                 
                 GtkWidget *label = gtk_label_new(display_name);
@@ -565,6 +561,9 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *toolbar;
     GtkWidget *scrolled;
     GtkWidget *text_view;
+    GtkWidget *edit_menu_btn;
+    GtkWidget *edit_menu;
+    GtkWidget *menu_item;
 
     window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Editor - Untitled");
@@ -593,26 +592,26 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_label_set_xalign(GTK_LABEL(title_label), 0.0);
     gtk_box_pack_start(GTK_BOX(title_bar), title_label, TRUE, TRUE, 10);
 
-    GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_box_pack_end(GTK_BOX(title_bar), button_box, FALSE, FALSE, 5);
+    GtkWidget *window_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_end(GTK_BOX(title_bar), window_buttons, FALSE, FALSE, 5);
 
     // Minimize button
     GtkWidget *min_btn = gtk_button_new_with_label("─");
     gtk_widget_set_size_request(min_btn, 30, 25);
     g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), window);
-    gtk_box_pack_start(GTK_BOX(button_box), min_btn, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(window_buttons), min_btn, FALSE, FALSE, 0);
 
     // Maximize button
     GtkWidget *max_btn = gtk_button_new_with_label("□");
     gtk_widget_set_size_request(max_btn, 30, 25);
     g_signal_connect(max_btn, "clicked", G_CALLBACK(on_maximize_clicked), window);
-    gtk_box_pack_start(GTK_BOX(button_box), max_btn, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(window_buttons), max_btn, FALSE, FALSE, 0);
 
     // Close button
     GtkWidget *close_btn = gtk_button_new_with_label("✕");
     gtk_widget_set_size_request(close_btn, 30, 25);
     g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), window);
-    gtk_box_pack_start(GTK_BOX(button_box), close_btn, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(window_buttons), close_btn, FALSE, FALSE, 0);
 
     // Separator
     GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
@@ -622,6 +621,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 5);
 
+    // File operations buttons
     GtkWidget *new_btn = gtk_button_new_with_label("New");
     g_signal_connect(new_btn, "clicked", G_CALLBACK(new_file), window);
     gtk_box_pack_start(GTK_BOX(toolbar), new_btn, FALSE, FALSE, 0);
@@ -638,16 +638,148 @@ static void activate(GtkApplication *app, gpointer user_data)
     g_signal_connect(save_as_btn, "clicked", G_CALLBACK(save_file_as), window);
     gtk_box_pack_start(GTK_BOX(toolbar), save_as_btn, FALSE, FALSE, 0);
 
-    // Scrolled window for text view
+    // Separator
+    GtkWidget *toolbar_sep = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+    gtk_box_pack_start(GTK_BOX(toolbar), toolbar_sep, FALSE, FALSE, 5);
+
+    // Scrolled window for text view - MOVED BEFORE EDIT MENU
     scrolled = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 5);
 
-    // Text view
+    // Text view - CREATED BEFORE EDIT MENU
     text_view = gtk_text_view_new();
     buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
     gtk_container_add(GTK_CONTAINER(scrolled), text_view);
+
+    // Initialize edit features - NOW text_view is initialized
+    edit_init(buffer);
+
+    // Edit Menu Button - NOW AFTER text_view is initialized
+    edit_menu_btn = gtk_menu_button_new();
+    gtk_button_set_label(GTK_BUTTON(edit_menu_btn), "Edit");
+    gtk_box_pack_start(GTK_BOX(toolbar), edit_menu_btn, FALSE, FALSE, 0);
+
+    // Create edit menu
+    edit_menu = gtk_menu_new();
+
+    // Undo/Redo section
+    menu_item = gtk_menu_item_new_with_label("Undo");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_undo), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Redo");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_redo), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    // Cut/Copy/Paste section
+    menu_item = gtk_menu_item_new_with_label("Cut");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_cut), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Copy");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_copy), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Paste");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_paste), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Delete");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_delete), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    // Select All
+    menu_item = gtk_menu_item_new_with_label("Select All");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_select_all), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    // Find/Replace/Goto section
+    menu_item = gtk_menu_item_new_with_label("Find...");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_find), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Replace...");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_replace), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Go to Line...");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_goto_line), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    // Text Transformation section
+    menu_item = gtk_menu_item_new_with_label("To Uppercase");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_to_uppercase), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("To Lowercase");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_to_lowercase), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Capitalize Words");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_capitalize), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    // Line Operations section
+    menu_item = gtk_menu_item_new_with_label("Toggle Comment");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_toggle_comment), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Indent");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_indent), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Unindent");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_unindent), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Duplicate Line");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_duplicate_line), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Delete Line");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_delete_line), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Join Lines");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_join_lines), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Sort Lines");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_sort_lines), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    menu_item = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    // Print section
+    menu_item = gtk_menu_item_new_with_label("Print...");
+    g_signal_connect(menu_item, "activate", G_CALLBACK(edit_print), text_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(edit_menu), menu_item);
+
+    gtk_widget_show_all(edit_menu);
+    gtk_menu_button_set_popup(GTK_MENU_BUTTON(edit_menu_btn), GTK_WIDGET(edit_menu));
+
+    // Add Print button to toolbar for quick access
+    GtkWidget *print_btn = gtk_button_new_with_label("Print");
+    g_signal_connect(print_btn, "clicked", G_CALLBACK(edit_print), text_view);
+    gtk_box_pack_start(GTK_BOX(toolbar), print_btn, FALSE, FALSE, 0);
 
     // Apply CSS for dark theme
     GtkCssProvider *provider = gtk_css_provider_new();
@@ -663,7 +795,10 @@ static void activate(GtkApplication *app, gpointer user_data)
         "listboxrow { background-color: #1a1a1a; color: #ffffff; }\n"
         "listboxrow:hover { background-color: #333333; }\n"
         "entry { background-color: #000000; color: #ffffff; border: 1px solid #ff3333; }\n"
-        "label { color: #ffffff; }\n",
+        "label { color: #ffffff; }\n"
+        "menu { background-color: #1a1a1a; color: #ffffff; }\n"
+        "menuitem { background-color: #1a1a1a; color: #ffffff; }\n"
+        "menuitem:hover { background-color: #333333; }\n",
         -1, NULL);
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
