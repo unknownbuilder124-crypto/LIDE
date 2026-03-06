@@ -10,7 +10,7 @@ static Display *xdisplay = NULL;
 static GList *minimized_windows = NULL;
 static GtkWidget *window = NULL;
 static GtkWidget *listbox = NULL;
-static Window container_xid = 0; // Store window ID
+static Window container_xid = 0; // To Store window ID
 
 // Structure to track minimized windows
 typedef struct {
@@ -37,10 +37,10 @@ static char* get_window_title(Window xid)
         XFree(data);
         return title;
     }
-    return NULL; // Return NULL instead of default string
+    return NULL; 
 }
 
-// Check if window should be ignored (system windows)
+// Check if window should be ignored 
 static gboolean should_ignore_window(Window xid, const char *title)
 
 {
@@ -50,11 +50,8 @@ static gboolean should_ignore_window(Window xid, const char *title)
         return TRUE;
     }
     
-    // Ignore windows with NULL or empty title (likely not application windows)
+    // Ignore windows with NULL 
     if (!title || title[0] == '\0') {
-        // But if we have a title, maybe it's still valid? For now, ignore untitled.
-        // However, the file manager does have a title. So we need to be careful.
-        // Let's only ignore if title is NULL (we failed to get title).
         if (!title) return TRUE;
     }
     
@@ -89,7 +86,7 @@ static void remove_minimized_window(Window xid)
     }
 }
 
-// Function to restore a minimized window
+// Function to restore a minimized window and close container
 static void restore_window(GtkButton *button, gpointer data) 
 
 {
@@ -101,6 +98,12 @@ static void restore_window(GtkButton *button, gpointer data)
         XMapWindow(xdisplay, xid);
         XRaiseWindow(xdisplay, xid);
         XFlush(xdisplay);
+        
+        // Auto-close the minimized container after restoring
+        if (window) {
+            gtk_widget_hide(window);
+            fprintf(stderr, "Auto-hiding container after restore\n");
+        }
     }
 }
 
@@ -166,15 +169,13 @@ static void add_minimized_window(Window xid)
     
     minimized_windows = g_list_append(minimized_windows, mw);
     fprintf(stderr, "Added window 0x%lx (%s) to list\n", (long)xid, title);
-    
-    // Force show the container when item is added 
     // if (window) {
     //     gtk_window_present(GTK_WINDOW(window));
     //     fprintf(stderr, "Forced container to show\n");
     // }
 }
 
-// X11 event handler (GIO channel)
+// X11 event handler 
 static gboolean x11_event_watch(GIOChannel *source, GIOCondition condition, gpointer data) 
 
 {
@@ -325,7 +326,7 @@ static void show_minimized_container(GtkButton *button, gpointer data)
     }
 }
 
-// Initialize the minimized container (call this from panel)
+// Initialize the minimized container 
 void minimized_container_initialize(void) 
 
 {
@@ -414,7 +415,7 @@ void minimized_container_initialize(void)
     listbox = gtk_list_box_new();
     gtk_container_add(GTK_CONTAINER(scrolled), listbox);
     
-    // Show window so it's created, then hide it
+    // Show window then hide it
     gtk_widget_show_all(window);
     gtk_widget_hide(window);
     fprintf(stderr, "Minimized container initialized and hidden\n");
