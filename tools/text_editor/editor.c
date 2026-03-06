@@ -1,0 +1,749 @@
+#include <gtk/gtk.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <gdk/gdkx.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+// Dragging variables
+static int is_dragging = 0;
+static int drag_start_x, drag_start_y;
+
+// Text buffer
+static GtkTextBuffer *buffer = NULL;
+static char *current_filename = NULL;
+static char *current_folder = NULL;
+
+// Function prototypes - declare ALL functions at the top
+static void new_file(GtkButton *button, gpointer data);
+static void open_file(GtkButton *button, gpointer data);
+static void save_file(GtkButton *button, gpointer data);
+static void save_file_as(GtkButton *button, gpointer data);
+static void on_listbox_row_activated(GtkListBox *listbox, GtkListBoxRow *row, gpointer dialog);
+static void on_open_clicked(GtkButton *button, gpointer dialog);
+static void on_save_clicked(GtkButton *button, gpointer dialog);
+static void on_up_clicked(GtkButton *button, gpointer dialog);
+static void on_home_clicked(GtkButton *button, gpointer dialog);
+static void custom_open_dialog(GtkWidget *parent);
+static void custom_save_dialog(GtkWidget *parent);
+
+// Dragging handlers
+static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window)
+{
+    if (event->button == 1)
+    {
+        is_dragging = 1;
+        drag_start_x = event->x_root;
+        drag_start_y = event->y_root;
+        gtk_window_present(GTK_WINDOW(window));
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window)
+{
+    (void)widget;
+    (void)event;
+    (void)window;
+    is_dragging = 0;
+    return FALSE;
+}
+
+static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window)
+{
+    GtkWidget *win = GTK_WIDGET(window);
+
+    if (is_dragging) {
+        int dx = event->x_root - drag_start_x;
+        int dy = event->y_root - drag_start_y;
+
+        int x, y;
+        gtk_window_get_position(GTK_WINDOW(win), &x, &y);
+        gtk_window_move(GTK_WINDOW(win), x + dx, y + dy);
+
+        drag_start_x = event->x_root;
+        drag_start_y = event->y_root;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// Window control callbacks
+static void on_minimize_clicked(GtkButton *button, gpointer window)
+{
+    (void)button;
+    gtk_window_iconify(GTK_WINDOW(window));
+}
+
+static void on_maximize_clicked(GtkButton *button, gpointer window)
+{
+    (void)button;
+    if (gtk_window_is_maximized(GTK_WINDOW(window)))
+        gtk_window_unmaximize(GTK_WINDOW(window));
+    else
+        gtk_window_maximize(GTK_WINDOW(window));
+}
+
+static void on_close_clicked(GtkButton *button, gpointer window)
+{
+    (void)button;
+    gtk_window_close(GTK_WINDOW(window));
+}
+
+// File operations
+static void new_file(GtkButton *button, gpointer data)
+{
+    (void)button;
+    GtkWidget *window = GTK_WIDGET(data);
+    gtk_text_buffer_set_text(buffer, "", -1);
+    if (current_filename) {
+        g_free(current_filename);
+        current_filename = NULL;
+    }
+    gtk_window_set_title(GTK_WINDOW(window), "BlackLine Editor - Untitled");
+}
+
+// Directory navigation functions
+static void on_up_clicked(GtkButton *button, gpointer dialog)
+{
+    (void)button;
+    char *parent = g_path_get_dirname(current_folder);
+    if (g_strcmp0(parent, current_folder) != 0) {
+        g_free(current_folder);
+        current_folder = parent;
+        
+        // Get the parent window before destroying dialog
+        GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+        GtkWidget *parent_widget = GTK_WIDGET(parent_win);
+        
+        // Refresh the dialog
+        gtk_widget_destroy(GTK_WIDGET(dialog));
+        
+        // Reopen dialog with new path
+        if (gtk_window_get_title(GTK_WINDOW(dialog)) && 
+            strstr(gtk_window_get_title(GTK_WINDOW(dialog)), "Open")) {
+            custom_open_dialog(parent_widget);
+        } else {
+            custom_save_dialog(parent_widget);
+        }
+    } else {
+        g_free(parent);
+    }
+}
+
+static void on_home_clicked(GtkButton *button, gpointer dialog)
+{
+    (void)button;
+    const gchar *home = g_get_home_dir();
+    g_free(current_folder);
+    current_folder = g_strdup(home);
+    
+    // Get the parent window before destroying dialog
+    GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+    GtkWidget *parent_widget = GTK_WIDGET(parent_win);
+    
+    // Refresh the dialog
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+    
+    // Reopen dialog with home path
+    if (gtk_window_get_title(GTK_WINDOW(dialog)) && 
+        strstr(gtk_window_get_title(GTK_WINDOW(dialog)), "Open")) {
+        custom_open_dialog(parent_widget);
+    } else {
+        custom_save_dialog(parent_widget);
+    }
+}
+
+static void on_listbox_row_activated(GtkListBox *listbox, GtkListBoxRow *row, gpointer dialog)
+{
+    (void)listbox;
+    GtkWidget *row_widget = GTK_WIDGET(row);
+    GtkWidget *label = gtk_bin_get_child(GTK_BIN(row_widget));
+    const char *filename = gtk_label_get_text(GTK_LABEL(label));
+    
+    // Skip [DIR] prefix if present
+    if (strncmp(filename, "[DIR] ", 6) == 0) {
+        filename = filename + 6;
+    }
+    
+    gpointer is_dir_ptr = g_object_get_data(G_OBJECT(row_widget), "is_dir");
+    int is_dir = GPOINTER_TO_INT(is_dir_ptr);
+    
+    if (is_dir) {
+        // Enter directory
+        char *new_path = g_build_filename(current_folder, filename, NULL);
+        g_free(current_folder);
+        current_folder = new_path;
+        
+        // Get the parent window before destroying dialog
+        GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+        GtkWidget *parent_widget = GTK_WIDGET(parent_win);
+        
+        // Refresh the dialog
+        gtk_widget_destroy(GTK_WIDGET(dialog));
+        
+        // Reopen dialog with new path
+        if (gtk_window_get_title(GTK_WINDOW(dialog)) && 
+            strstr(gtk_window_get_title(GTK_WINDOW(dialog)), "Open")) {
+            custom_open_dialog(parent_widget);
+        } else {
+            custom_save_dialog(parent_widget);
+        }
+    } else {
+        // Select file - set entry text
+        GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+        GList *children = gtk_container_get_children(GTK_CONTAINER(content));
+        for (GList *c = children; c; c = c->next) {
+            if (GTK_IS_BOX(c->data)) {
+                GList *box_children = gtk_container_get_children(GTK_CONTAINER(c->data));
+                for (GList *bc = box_children; bc; bc = bc->next) {
+                    if (GTK_IS_BOX(bc->data)) {
+                        GList *name_box_children = gtk_container_get_children(GTK_CONTAINER(bc->data));
+                        for (GList *nc = name_box_children; nc; nc = nc->next) {
+                            if (GTK_IS_ENTRY(nc->data)) {
+                                gtk_entry_set_text(GTK_ENTRY(nc->data), filename);
+                            }
+                        }
+                        g_list_free(name_box_children);
+                    }
+                }
+                g_list_free(box_children);
+            }
+        }
+        g_list_free(children);
+    }
+}
+
+static void on_open_clicked(GtkButton *button, gpointer dialog)
+{
+    (void)button;
+    
+    // Get filename from entry
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    char *filename = NULL;
+    
+    GList *children = gtk_container_get_children(GTK_CONTAINER(content));
+    for (GList *c = children; c; c = c->next) {
+        if (GTK_IS_BOX(c->data)) {
+            GList *box_children = gtk_container_get_children(GTK_CONTAINER(c->data));
+            for (GList *bc = box_children; bc; bc = bc->next) {
+                if (GTK_IS_BOX(bc->data)) {
+                    GList *name_box_children = gtk_container_get_children(GTK_CONTAINER(bc->data));
+                    for (GList *nc = name_box_children; nc; nc = nc->next) {
+                        if (GTK_IS_ENTRY(nc->data)) {
+                            filename = g_strdup(gtk_entry_get_text(GTK_ENTRY(nc->data)));
+                        }
+                    }
+                    g_list_free(name_box_children);
+                }
+            }
+            g_list_free(box_children);
+        }
+    }
+    g_list_free(children);
+    
+    if (filename && strlen(filename) > 0) {
+        char *fullpath = g_build_filename(current_folder, filename, NULL);
+        
+        // Read file
+        FILE *f = fopen(fullpath, "r");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            long size = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            
+            char *content = g_malloc(size + 1);
+            fread(content, 1, size, f);
+            content[size] = '\0';
+            fclose(f);
+            
+            gtk_text_buffer_set_text(buffer, content, -1);
+            g_free(content);
+            
+            // Update current filename
+            if (current_filename) g_free(current_filename);
+            current_filename = fullpath;
+            
+            // Update window title
+            GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+            GtkWidget *window = GTK_WIDGET(parent_win);
+            char *title = g_strdup_printf("BlackLine Editor - %s", filename);
+            gtk_window_set_title(GTK_WINDOW(window), title);
+            g_free(title);
+        } else {
+            g_free(fullpath);
+            g_free(filename);
+        }
+    }
+    
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+static void on_save_clicked(GtkButton *button, gpointer dialog)
+{
+    (void)button;
+    
+    // Get filename from entry
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    char *filename = NULL;
+    
+    GList *children = gtk_container_get_children(GTK_CONTAINER(content));
+    for (GList *c = children; c; c = c->next) {
+        if (GTK_IS_BOX(c->data)) {
+            GList *box_children = gtk_container_get_children(GTK_CONTAINER(c->data));
+            for (GList *bc = box_children; bc; bc = bc->next) {
+                if (GTK_IS_BOX(bc->data)) {
+                    GList *name_box_children = gtk_container_get_children(GTK_CONTAINER(bc->data));
+                    for (GList *nc = name_box_children; nc; nc = nc->next) {
+                        if (GTK_IS_ENTRY(nc->data)) {
+                            filename = g_strdup(gtk_entry_get_text(GTK_ENTRY(nc->data)));
+                        }
+                    }
+                    g_list_free(name_box_children);
+                }
+            }
+            g_list_free(box_children);
+        }
+    }
+    g_list_free(children);
+    
+    if (filename && strlen(filename) > 0) {
+        char *fullpath = g_build_filename(current_folder, filename, NULL);
+        
+        // Get text from buffer
+        GtkTextIter start, end;
+        gtk_text_buffer_get_start_iter(buffer, &start);
+        gtk_text_buffer_get_end_iter(buffer, &end);
+        char *text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+        
+        // Write file
+        FILE *f = fopen(fullpath, "w");
+        if (f) {
+            fprintf(f, "%s", text);
+            fclose(f);
+            
+            // Update current filename
+            if (current_filename) g_free(current_filename);
+            current_filename = fullpath;
+            
+            // Update window title
+            GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+            GtkWidget *window = GTK_WIDGET(parent_win);
+            char *title = g_strdup_printf("BlackLine Editor - %s", filename);
+            gtk_window_set_title(GTK_WINDOW(window), title);
+            g_free(title);
+        } else {
+            g_free(fullpath);
+        }
+        g_free(text);
+        g_free(filename);
+    }
+    
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+// Custom compact open dialog
+static void custom_open_dialog(GtkWidget *parent)
+{
+    GtkWidget *dialog;
+    GtkWidget *content;
+    GtkWidget *vbox;
+    GtkWidget *scrolled;
+    GtkWidget *listbox;
+    GtkWidget *button_box;
+    GtkWidget *cancel_btn;
+    GtkWidget *open_btn;
+    GtkWidget *entry;
+    GtkWidget *path_box;
+    GtkWidget *up_btn;
+    GtkWidget *home_btn;
+    GtkWidget *path_label;
+    
+    const gchar *home = g_get_home_dir();
+    if (!current_folder) {
+        current_folder = g_strdup(home);
+    }
+    
+    // Create dialog
+    dialog = gtk_dialog_new();
+    gtk_window_set_title(GTK_WINDOW(dialog), "Open File");
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, 350);
+    gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ON_PARENT);
+    
+    content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
+    
+    // Path bar
+    path_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_start(GTK_BOX(vbox), path_box, FALSE, FALSE, 0);
+    
+    up_btn = gtk_button_new_with_label("↑");
+    gtk_widget_set_size_request(up_btn, 30, 25);
+    g_signal_connect(up_btn, "clicked", G_CALLBACK(on_up_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(path_box), up_btn, FALSE, FALSE, 0);
+    
+    home_btn = gtk_button_new_with_label("🏠");
+    gtk_widget_set_size_request(home_btn, 30, 25);
+    g_signal_connect(home_btn, "clicked", G_CALLBACK(on_home_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(path_box), home_btn, FALSE, FALSE, 0);
+    
+    path_label = gtk_label_new(current_folder);
+    gtk_label_set_ellipsize(GTK_LABEL(path_label), PANGO_ELLIPSIZE_START);
+    gtk_box_pack_start(GTK_BOX(path_box), path_label, TRUE, TRUE, 5);
+    
+    // File list
+    scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_size_request(scrolled, -1, 200);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
+    
+    listbox = gtk_list_box_new();
+    gtk_container_add(GTK_CONTAINER(scrolled), listbox);
+    
+    // Populate file list
+    DIR *dir = opendir(current_folder);
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') continue; // Skip hidden files
+            
+            // Get file/directory info
+            char *fullpath = g_build_filename(current_folder, entry->d_name, NULL);
+            struct stat st;
+            if (stat(fullpath, &st) == 0) {
+                GtkWidget *row = gtk_list_box_row_new();
+                
+                char *display_name;
+                if (S_ISDIR(st.st_mode)) {
+                    display_name = g_strdup_printf("[DIR] %s", entry->d_name);
+                    g_object_set_data(G_OBJECT(row), "is_dir", GINT_TO_POINTER(1));
+                } else {
+                    display_name = g_strdup(entry->d_name);
+                    g_object_set_data(G_OBJECT(row), "is_dir", GINT_TO_POINTER(0));
+                }
+                
+                GtkWidget *label = gtk_label_new(display_name);
+                gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+                gtk_container_add(GTK_CONTAINER(row), label);
+                g_free(display_name);
+                
+                gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+            }
+            g_free(fullpath);
+        }
+        closedir(dir);
+    }
+    
+    // File name entry
+    GtkWidget *name_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), name_box, FALSE, FALSE, 0);
+    
+    GtkWidget *name_label = gtk_label_new("Name:");
+    gtk_box_pack_start(GTK_BOX(name_box), name_label, FALSE, FALSE, 0);
+    
+    entry = gtk_entry_new();
+    gtk_box_pack_start(GTK_BOX(name_box), entry, TRUE, TRUE, 0);
+    
+    // Buttons
+    button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), button_box, FALSE, FALSE, 0);
+    
+    cancel_btn = gtk_button_new_with_label("Cancel");
+    g_signal_connect_swapped(cancel_btn, "clicked", G_CALLBACK(gtk_widget_destroy), dialog);
+    gtk_box_pack_start(GTK_BOX(button_box), cancel_btn, TRUE, TRUE, 0);
+    
+    open_btn = gtk_button_new_with_label("Open");
+    g_signal_connect(open_btn, "clicked", G_CALLBACK(on_open_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(button_box), open_btn, TRUE, TRUE, 0);
+    
+    // Handle row activation
+    g_signal_connect(listbox, "row-activated", G_CALLBACK(on_listbox_row_activated), dialog);
+    
+    gtk_widget_show_all(dialog);
+}
+
+// Custom compact save dialog
+static void custom_save_dialog(GtkWidget *parent)
+{
+    GtkWidget *dialog;
+    GtkWidget *content;
+    GtkWidget *vbox;
+    GtkWidget *scrolled;
+    GtkWidget *listbox;
+    GtkWidget *button_box;
+    GtkWidget *cancel_btn;
+    GtkWidget *save_btn;
+    GtkWidget *entry;
+    GtkWidget *path_box;
+    GtkWidget *up_btn;
+    GtkWidget *home_btn;
+    GtkWidget *path_label;
+    
+    const gchar *home = g_get_home_dir();
+    if (!current_folder) {
+        current_folder = g_strdup(home);
+    }
+    
+    // Create dialog
+    dialog = gtk_dialog_new();
+    gtk_window_set_title(GTK_WINDOW(dialog), "Save File");
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, 350);
+    gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ON_PARENT);
+    
+    content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
+    
+    // Path bar
+    path_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_start(GTK_BOX(vbox), path_box, FALSE, FALSE, 0);
+    
+    up_btn = gtk_button_new_with_label("↑");
+    gtk_widget_set_size_request(up_btn, 30, 25);
+    g_signal_connect(up_btn, "clicked", G_CALLBACK(on_up_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(path_box), up_btn, FALSE, FALSE, 0);
+    
+    home_btn = gtk_button_new_with_label("🏠");
+    gtk_widget_set_size_request(home_btn, 30, 25);
+    g_signal_connect(home_btn, "clicked", G_CALLBACK(on_home_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(path_box), home_btn, FALSE, FALSE, 0);
+    
+    path_label = gtk_label_new(current_folder);
+    gtk_label_set_ellipsize(GTK_LABEL(path_label), PANGO_ELLIPSIZE_START);
+    gtk_box_pack_start(GTK_BOX(path_box), path_label, TRUE, TRUE, 5);
+    
+    // File list (directories only for save dialog)
+    scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_size_request(scrolled, -1, 150);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
+    
+    listbox = gtk_list_box_new();
+    gtk_container_add(GTK_CONTAINER(scrolled), listbox);
+    
+    // Populate file list (directories only for save dialog)
+    DIR *dir = opendir(current_folder);
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') continue;
+            
+            char *fullpath = g_build_filename(current_folder, entry->d_name, NULL);
+            struct stat st;
+            if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode)) {
+                GtkWidget *row = gtk_list_box_row_new();
+                char *display_name = g_strdup_printf("[DIR] %s", entry->d_name);
+                GtkWidget *label = gtk_label_new(display_name);
+                gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+                gtk_container_add(GTK_CONTAINER(row), label);
+                g_free(display_name);
+                
+                g_object_set_data(G_OBJECT(row), "is_dir", GINT_TO_POINTER(1));
+                gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+            }
+            g_free(fullpath);
+        }
+        closedir(dir);
+    }
+    
+    // File name entry
+    GtkWidget *name_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), name_box, FALSE, FALSE, 0);
+    
+    GtkWidget *name_label = gtk_label_new("Name:");
+    gtk_box_pack_start(GTK_BOX(name_box), name_label, FALSE, FALSE, 0);
+    
+    entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), "untitled.txt");
+    gtk_box_pack_start(GTK_BOX(name_box), entry, TRUE, TRUE, 0);
+    
+    // Buttons
+    button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), button_box, FALSE, FALSE, 0);
+    
+    cancel_btn = gtk_button_new_with_label("Cancel");
+    g_signal_connect_swapped(cancel_btn, "clicked", G_CALLBACK(gtk_widget_destroy), dialog);
+    gtk_box_pack_start(GTK_BOX(button_box), cancel_btn, TRUE, TRUE, 0);
+    
+    save_btn = gtk_button_new_with_label("Save");
+    g_signal_connect(save_btn, "clicked", G_CALLBACK(on_save_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(button_box), save_btn, TRUE, TRUE, 0);
+    
+    // Handle row activation (enter directory)
+    g_signal_connect(listbox, "row-activated", G_CALLBACK(on_listbox_row_activated), dialog);
+    
+    gtk_widget_show_all(dialog);
+}
+
+static void open_file(GtkButton *button, gpointer data)
+{
+    (void)button;
+    GtkWidget *window = GTK_WIDGET(data);
+    custom_open_dialog(window);
+}
+
+static void save_file(GtkButton *button, gpointer data)
+{
+    (void)button;
+    GtkWidget *window = GTK_WIDGET(data);
+    
+    if (current_filename) {
+        GtkTextIter start, end;
+        gtk_text_buffer_get_start_iter(buffer, &start);
+        gtk_text_buffer_get_end_iter(buffer, &end);
+        char *text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+        
+        FILE *f = fopen(current_filename, "w");
+        if (f) {
+            fprintf(f, "%s", text);
+            fclose(f);
+        }
+        g_free(text);
+    } else {
+        custom_save_dialog(window);
+    }
+}
+
+static void save_file_as(GtkButton *button, gpointer data)
+{
+    (void)button;
+    GtkWidget *window = GTK_WIDGET(data);
+    custom_save_dialog(window);
+}
+
+static void activate(GtkApplication *app, gpointer user_data)
+{
+    (void)user_data;
+    GtkWidget *window;
+    GtkWidget *vbox;
+    GtkWidget *toolbar;
+    GtkWidget *scrolled;
+    GtkWidget *text_view;
+
+    window = gtk_application_window_new(app);
+    gtk_window_set_title(GTK_WINDOW(window), "BlackLine Editor - Untitled");
+    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+
+    // Enable events for dragging
+    gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK |
+                                   GDK_BUTTON_RELEASE_MASK |
+                                   GDK_POINTER_MOTION_MASK);
+    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press), window);
+    g_signal_connect(window, "button-release-event", G_CALLBACK(on_button_release), window);
+    g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_notify), window);
+
+    // Main vertical box
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_container_add(GTK_CONTAINER(window), vbox);
+
+    // Custom title bar with controls
+    GtkWidget *title_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_name(title_bar, "title-bar");
+    gtk_widget_set_size_request(title_bar, -1, 30);
+    gtk_box_pack_start(GTK_BOX(vbox), title_bar, FALSE, FALSE, 0);
+
+    GtkWidget *title_label = gtk_label_new("BlackLine Editor");
+    gtk_label_set_xalign(GTK_LABEL(title_label), 0.0);
+    gtk_box_pack_start(GTK_BOX(title_bar), title_label, TRUE, TRUE, 10);
+
+    GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_end(GTK_BOX(title_bar), button_box, FALSE, FALSE, 5);
+
+    // Minimize button
+    GtkWidget *min_btn = gtk_button_new_with_label("─");
+    gtk_widget_set_size_request(min_btn, 30, 25);
+    g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), window);
+    gtk_box_pack_start(GTK_BOX(button_box), min_btn, FALSE, FALSE, 0);
+
+    // Maximize button
+    GtkWidget *max_btn = gtk_button_new_with_label("□");
+    gtk_widget_set_size_request(max_btn, 30, 25);
+    g_signal_connect(max_btn, "clicked", G_CALLBACK(on_maximize_clicked), window);
+    gtk_box_pack_start(GTK_BOX(button_box), max_btn, FALSE, FALSE, 0);
+
+    // Close button
+    GtkWidget *close_btn = gtk_button_new_with_label("✕");
+    gtk_widget_set_size_request(close_btn, 30, 25);
+    g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), window);
+    gtk_box_pack_start(GTK_BOX(button_box), close_btn, FALSE, FALSE, 0);
+
+    // Separator
+    GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(vbox), sep, FALSE, FALSE, 0);
+
+    // Toolbar
+    toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 5);
+
+    GtkWidget *new_btn = gtk_button_new_with_label("New");
+    g_signal_connect(new_btn, "clicked", G_CALLBACK(new_file), window);
+    gtk_box_pack_start(GTK_BOX(toolbar), new_btn, FALSE, FALSE, 0);
+
+    GtkWidget *open_btn = gtk_button_new_with_label("Open");
+    g_signal_connect(open_btn, "clicked", G_CALLBACK(open_file), window);
+    gtk_box_pack_start(GTK_BOX(toolbar), open_btn, FALSE, FALSE, 0);
+
+    GtkWidget *save_btn = gtk_button_new_with_label("Save");
+    g_signal_connect(save_btn, "clicked", G_CALLBACK(save_file), window);
+    gtk_box_pack_start(GTK_BOX(toolbar), save_btn, FALSE, FALSE, 0);
+
+    GtkWidget *save_as_btn = gtk_button_new_with_label("Save As");
+    g_signal_connect(save_as_btn, "clicked", G_CALLBACK(save_file_as), window);
+    gtk_box_pack_start(GTK_BOX(toolbar), save_as_btn, FALSE, FALSE, 0);
+
+    // Scrolled window for text view
+    scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 5);
+
+    // Text view
+    text_view = gtk_text_view_new();
+    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+    gtk_container_add(GTK_CONTAINER(scrolled), text_view);
+
+    // Apply CSS for dark theme
+    GtkCssProvider *provider = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(provider,
+        "window { background-color: #000000; color: #ffffff; }\n"
+        "textview { background-color: #1a1a1a; color: #ffffff; }\n"
+        "textview text { background-color: #1a1a1a; color: #ffffff; }\n"
+        "button { background-color: #1a1a1a; color: #ff3333; border: 1px solid #ff3333; }\n"
+        "button:hover { background-color: #333333; }\n"
+        "#title-bar { background-color: #000000; border-bottom: 2px solid #ff3333; }\n"
+        "dialog { background-color: #1a1a1a; color: #ffffff; }\n"
+        "list { background-color: #1a1a1a; color: #ffffff; }\n"
+        "listboxrow { background-color: #1a1a1a; color: #ffffff; }\n"
+        "listboxrow:hover { background-color: #333333; }\n"
+        "entry { background-color: #000000; color: #ffffff; }\n",
+        -1, NULL);
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+        GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
+
+    gtk_widget_show_all(window);
+}
+
+int main(int argc, char **argv)
+{
+    GtkApplication *app = gtk_application_new("org.blackline.editor", G_APPLICATION_DEFAULT_FLAGS);
+    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
+    int status = g_application_run(G_APPLICATION(app), argc, argv);
+    g_object_unref(app);
+    return status;
+}

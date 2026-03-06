@@ -28,7 +28,13 @@ static void launch_text_editor(GtkButton *button, gpointer window)
 {
     (void)button;
     (void)window;
-    system("gedit &");
+    
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Launch custom text editor
+        execl("./blackline-editor", "blackline-editor", NULL);
+        exit(0);
+    }
 }
 
 static void launch_calculator(GtkButton *button, gpointer window) 
@@ -137,12 +143,12 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), sep, FALSE, FALSE, 5);
     
-    // File Manager button - NOW OPENS YOUR CUSTOM FILE MANAGER
+    // File Manager button
     GtkWidget *fm_btn = gtk_button_new_with_label("File Manager");
     g_signal_connect(fm_btn, "clicked", G_CALLBACK(launch_file_manager), window);
     gtk_box_pack_start(GTK_BOX(vbox), fm_btn, FALSE, FALSE, 2);
     
-    // Text Editor button
+    // Text Editor button - NOW LAUNCHES CUSTOM EDITOR
     GtkWidget *editor_btn = gtk_button_new_with_label("Text Editor");
     g_signal_connect(editor_btn, "clicked", G_CALLBACK(launch_text_editor), window);
     gtk_box_pack_start(GTK_BOX(vbox), editor_btn, FALSE, FALSE, 2);
