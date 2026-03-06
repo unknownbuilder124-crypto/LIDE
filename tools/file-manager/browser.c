@@ -1,5 +1,7 @@
 #include "fm.h"
 #include <time.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 static gchar *format_size(goffset size) 
 
@@ -14,6 +16,64 @@ static gchar *format_time(GDateTime *dt)
 
 {
     return g_date_time_format(dt, "%Y-%m-%d %H:%M");
+}
+
+// Check if file is a text file based on extension
+static gboolean is_text_file(const gchar *filename) 
+{
+    const gchar *ext = strrchr(filename, '.');
+    if (!ext) return FALSE;
+    
+    // Common text file extensions
+    const gchar *text_extensions[] = {
+        ".txt", ".c", ".h", ".cpp", ".hpp", ".cc", ".cxx",
+        ".py", ".pl", ".rb", ".sh", ".bash", ".zsh",
+        ".js", ".html", ".htm", ".css", ".xml", ".json",
+        ".md", ".markdown", ".ini", ".conf", ".cfg",
+        ".log", ".csv", ".tsv", ".sql", ".java", ".kt",
+        ".go", ".rs", ".swift", ".m", ".mm", ".php",
+        ".asp", ".aspx", ".jsp", ".tcl", ".lua", ".r",
+        ".yaml", ".yml", ".toml", ".makefile", ".mk",
+        ".cmake", ".diff", ".patch", ".tex", ".bib",
+        ".rst", ".asciidoc", ".pod", ".1", ".2", ".3",
+        ".man", ".nfo", ".diz", ".gitignore", ".gitattributes",
+        ".editorconfig", ".vim", ".el", ".scm", ".ss",
+        ".clj", ".cljs", ".coffee", ".litcoffee", ".hs",
+        ".lhs", ".erl", ".hrl", ".ex", ".exs", ".eex",
+        ".leex", ".slim", ".haml", ".pug", ".jade",
+        ".scss", ".sass", ".less", ".styl", ".vue",
+        ".jsx", ".tsx", ".dart", ".groovy", ".gradle",
+        ".properties", ".plist", ".xib", ".storyboard",
+        ".strings", ".po", ".mo", ".json5", ".jsonc",
+        ".proto", ".thrift", ".capnp", ".fbs", NULL
+    };
+    
+    for (int i = 0; text_extensions[i] != NULL; i++) {
+        if (g_str_has_suffix(filename, text_extensions[i])) {
+            return TRUE;
+        }
+    }
+    
+    return FALSE;
+}
+
+// Open file with appropriate application - FIXED to use BlackLine editor
+static void open_file_with_app(GtkWindow *parent, const gchar *path) 
+{
+    (void)parent; // Unused parameter
+    
+    // Check if it's a text file
+    if (is_text_file(path)) {
+        // Use BlackLine editor for text files - launch in background
+        gchar *command = g_strdup_printf("blackline-editor \"%s\" &", path);
+        system(command);
+        g_free(command);
+    } else {
+        // For other files, use xdg-open
+        gchar *command = g_strdup_printf("xdg-open \"%s\" &", path);
+        system(command);
+        g_free(command);
+    }
 }
 
 // Helper function to load directory without history
@@ -238,14 +298,14 @@ void fm_on_row_activated(GtkTreeView *tree, GtkTreePath *path, GtkTreeViewColumn
         fm_open_location(fm, child_path);
         g_free(child_path);
     } else {
-        gchar *uri = g_file_get_uri(child);
-        GError *error = NULL;
-        gtk_show_uri_on_window(GTK_WINDOW(fm->window), uri, GDK_CURRENT_TIME, &error);
-        if (error) {
-            g_warning("Failed to open: %s", error->message);
-            g_error_free(error);
-        }
-        g_free(uri);
+        // Open file with appropriate application (text files go to BlackLine editor)
+        gchar *file_path = g_file_get_path(child);
+        
+        // Debug: print what we're trying to open
+        g_print("Opening file: %s\n", file_path);
+        
+        open_file_with_app(GTK_WINDOW(fm->window), file_path);
+        g_free(file_path);
     }
     g_object_unref(child);
     g_object_unref(current);
