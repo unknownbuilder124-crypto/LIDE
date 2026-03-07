@@ -16,7 +16,10 @@ else
     WEBKIT_LIBS = $(shell pkg-config --libs $(WEBKIT_PKG))
 endif
 
-all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox
+# Firefox wrapper build
+FIREFOX_WRAPPER = tools/firefox/firefox-wrapper
+
+all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox firefox-wrapper
 
 blackline-wm: wm/wm.c
 	$(CC) $(CFLAGS) -o $@ $< $(X11_LIBS)
@@ -60,11 +63,12 @@ tools/system-monitor/memory.o: tools/system-monitor/memory.c tools/system-monito
 tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-monitor/monitor.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
-# VoidFox Web Browser with all features
+# VoidFox Web Browser with all features including download stats
 voidfox: tools/web-browser/voidfox.o tools/web-browser/browser.o tools/web-browser/tab.o \
          tools/web-browser/app_menu.o tools/web-browser/bookmarks.o \
          tools/web-browser/history.o tools/web-browser/downloads.o \
-         tools/web-browser/passwords.o tools/web-browser/extensions.o
+         tools/web-browser/passwords.o tools/web-browser/extensions.o \
+         tools/web-browser/download-stats.o
 	$(CC) -o $@ $^ $(GTK_LIBS) $(WEBKIT_LIBS)
 	@echo "Built VoidFox with $(WEBKIT_PKG)"
 
@@ -74,7 +78,8 @@ tools/web-browser/voidfox.o: tools/web-browser/voidfox.c tools/web-browser/voidf
 tools/web-browser/browser.o: tools/web-browser/browser.c tools/web-browser/voidfox.h \
                             tools/web-browser/app_menu.h tools/web-browser/bookmarks.h \
                             tools/web-browser/history.h tools/web-browser/downloads.h \
-                            tools/web-browser/passwords.h tools/web-browser/extensions.h
+                            tools/web-browser/passwords.h tools/web-browser/extensions.h \
+                            tools/web-browser/download-stats.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 tools/web-browser/tab.o: tools/web-browser/tab.c tools/web-browser/voidfox.h
@@ -106,12 +111,24 @@ tools/web-browser/extensions.o: tools/web-browser/extensions.c tools/web-browser
                                tools/web-browser/voidfox.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
+tools/web-browser/download-stats.o: tools/web-browser/download-stats.c \
+                                   tools/web-browser/download-stats.h \
+                                   tools/web-browser/downloads.h \
+                                   tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+# Firefox wrapper
+firefox-wrapper: $(FIREFOX_WRAPPER).c
+	mkdir -p tools/firefox
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $(FIREFOX_WRAPPER) $(FIREFOX_WRAPPER).c $(GTK_LIBS)
+	@echo "Built Firefox wrapper"
+
 # Individual object files
 %.o: %.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 clean:
-	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox
+	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox $(FIREFOX_WRAPPER)
 	rm -f *.o tools/system-monitor/*.o tools/web-browser/*.o
 
 # Install all binaries
@@ -126,6 +143,7 @@ install: all
 	sudo cp blackline-calculator /usr/local/bin/
 	sudo cp blackline-system-monitor /usr/local/bin/
 	sudo cp voidfox /usr/local/bin/
+	sudo cp $(FIREFOX_WRAPPER) /usr/local/bin/lide-firefox
 
 # Uninstall all binaries
 uninstall:
@@ -139,6 +157,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/blackline-calculator
 	sudo rm -f /usr/local/bin/blackline-system-monitor
 	sudo rm -f /usr/local/bin/voidfox
+	sudo rm -f /usr/local/bin/lide-firefox
 
 # Run commands
 run-editor: blackline-editor
@@ -156,6 +175,9 @@ run-system-monitor: blackline-system-monitor
 run-voidfox: voidfox
 	./voidfox
 
+run-firefox: firefox-wrapper
+	./$(FIREFOX_WRAPPER)
+
 # WebKit dependency check
 check-webkit:
 	@echo "Checking WebKitGTK installation..."
@@ -169,6 +191,19 @@ check-webkit:
 		echo "  On Kali Linux: sudo apt install libwebkit2gtk-4.1-dev"; \
 		echo "  On Fedora: sudo dnf install webkit2gtk3-devel"; \
 		echo "  On Arch: sudo pacman -S webkit2gtk"; \
+	fi
+
+# Firefox check
+check-firefox:
+	@echo "Checking Firefox installation..."
+	@if command -v firefox >/dev/null 2>&1; then \
+		echo "✓ Firefox found: $$(firefox --version | head -1)"; \
+	elif command -v firefox-esr >/dev/null 2>&1; then \
+		echo "✓ Firefox ESR found: $$(firefox-esr --version | head -1)"; \
+	else \
+		echo "✗ Firefox not found!"; \
+		echo "  Install with: sudo apt install firefox"; \
+		echo "  or: sudo apt install firefox-esr"; \
 	fi
 
 help:
@@ -186,10 +221,12 @@ help:
 	@echo "  blackline-calculator    - Build calculator"
 	@echo "  blackline-system-monitor - Build system monitor"
 	@echo "  voidfox                 - Build VoidFox web browser"
+	@echo "  firefox-wrapper         - Build Firefox wrapper"
 	@echo "  clean                   - Remove all binaries and object files"
 	@echo "  install                 - Install all binaries to /usr/local/bin"
 	@echo "  uninstall               - Remove all binaries from /usr/local/bin"
 	@echo "  check-webkit            - Check WebKitGTK installation"
+	@echo "  check-firefox           - Check Firefox installation"
 	@echo ""
 	@echo "Run targets:"
 	@echo "  run-editor              - Run text editor"
@@ -197,5 +234,6 @@ help:
 	@echo "  run-calculator          - Run calculator"
 	@echo "  run-system-monitor      - Run system monitor"
 	@echo "  run-voidfox             - Run VoidFox web browser"
+	@echo "  run-firefox             - Run Firefox wrapper"
 
-.PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor run-voidfox check-webkit help
+.PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor run-voidfox run-firefox check-webkit check-firefox help

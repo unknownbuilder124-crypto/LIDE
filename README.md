@@ -214,3 +214,199 @@ LIDE/
 ├── run.sh # Development test script
 ├── blackline.desktop # Desktop entry for display managers
 └── README.md # This file
+
+
+## Building from Source
+
+### Dependencies
+
+```bash
+# Debian/Ubuntu/Kali
+sudo apt update
+sudo apt install libx11-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
+                 pkg-config feh xterm gedit gnome-calculator \
+                 gnome-system-monitor
+
+Build Commands
+# Clone the repository
+git clone https://github.com/Algorift169/BlackLine.git
+cd BlackLine
+
+# Build all components
+make clean
+make all
+
+# This creates:
+# - blackline-wm              (window manager)
+# - blackline-panel           (top panel)
+# - blackline-launcher        (app launcher)
+# - blackline-tools           (tools container)
+# - blackline-fm              (file manager)
+# - blackline-editor          (text editor)
+# - blackline-calculator      (calculator)
+# - blackline-system-monitor  (system monitor)
+# - voidfox                   (web browser)
+# - blackline-background      (background service)
+# - blackline-session         (session manager)
+
+Installation
+# Install to /usr/local/bin (system-wide)
+sudo make install
+
+# Or install manually
+sudo cp blackline-* /usr/local/bin/
+sudo cp voidfox /usr/local/bin/
+sudo cp blackline.desktop /usr/share/xsessions/
+
+Running BlackLine
+# Run the test script
+./run.sh
+
+Theme
+
+BlackLine features a terminal-inspired dark theme:
+
+    Background: #0b0f14 (dark charcoal)
+
+    Accent: #00ff88 (vibrant green)
+
+    File Manager: Black background (#000000) with red accents (#ff3333)
+
+    Text Editor: Black background with red accents
+
+    Calculator: Dark theme with green buttons
+
+    System Monitor: Dark theme with green graphs
+
+    VoidFox Browser: Dark theme with green accents and custom logo, plus styled menu and tab close buttons
+
+    Text: White (#ffffff) for readability
+
+    Borders: Subtle accent-colored borders
+
+Tools Overview
+File Manager
+
+    Browse files and folders with intuitive column view
+
+    Sort by name, size, type, or date
+
+    Navigate with toolbar buttons or keyboard
+
+    Open files with default applications
+
+Text Editor
+
+    Full-featured editing with syntax highlighting
+
+    Find and replace with options
+
+    Line operations and text transformations
+
+    Print support
+
+Calculator
+
+    Scientific calculator with memory functions
+
+    Keyboard input support
+
+    Expression evaluation with parentheses
+
+System Monitor
+
+    Real-time CPU and memory graphs
+
+    Process list with sorting
+
+    System resource overview
+
+VoidFox Web Browser
+
+    Tabbed browsing with close buttons on each tab
+
+    Application menu for browser management
+
+    Bookmarks, History, Downloads, Passwords tabs for easy data management
+
+    Smart URL/search bar – type a URL or search term
+
+    Persistent storage – bookmarks, history, downloads, passwords saved to disk
+
+    Find in page with case‑sensitive option
+
+    Print support via JavaScript window.print()
+
+    Zoom controls (in/out/reset)
+
+    Report broken site – search Google for the current URL with "report broken site"
+
+Troubleshooting
+Common Issues
+
+Q: The wallpaper doesn't show up.
+A: Ensure feh is installed and the image exists at ~/Desktop/LIDE/images/wal1.png.
+
+Q: Keyboard shortcuts don't work.
+A: Make sure the window manager is running and has focus. Check for conflicts with other applications.
+
+Q: The file manager won't launch from Tools.
+A: Verify blackline-fm was built successfully and is in the same directory as the other binaries.
+
+Q: VoidFox browser crashes on startup.
+A: Set environment variables: export WEBKIT_DISABLE_COMPOSITING_MODE=1 and export LIBGL_ALWAYS_SOFTWARE=1
+
+Q: VoidFox shows a Google "sorry" page when searching.
+A: This is a temporary block. The browser now sets a modern user agent; try again later or use a different search engine via Settings.
+
+Q: Windows aren't draggable.
+A: Click anywhere on the window (not just the title bar) to drag - this is by design.
+
+Q: The calculator shows wrong results.
+A: Ensure proper syntax: use * for multiplication, / for division, ^ for power.
+
+Q: System Monitor shows no processes.
+A: Check if /proc is accessible. Run with appropriate permissions.
+Future Plans
+
+    System settings panel
+
+    Notification area
+
+    Workspace switcher
+
+    Application dock
+
+    Network manager integration
+
+    Audio controls
+
+    Power management
+
+    Additional desktop widgets
+
+    Configuration file support
+
+    Theme selector
+
+Contributing
+
+Contributions are welcome! Areas for improvement:
+
+    Additional desktop tools
+
+    Workspace support
+
+    System tray
+
+    Configuration file support
+
+    Application menu
+
+    Performance optimizations
+
+    Bug fixes and stability improvements
+
+License
+
+This project is open source. Feel free to use, modify, and distribute it according to the license terms.
