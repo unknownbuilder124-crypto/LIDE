@@ -73,6 +73,23 @@ static void launch_system_monitor(GtkButton *button, gpointer window)
     }
 }
 
+// NEW: Web browser launcher function
+static void launch_web_browser(GtkButton *button, gpointer window) 
+
+{
+    (void)button;
+    
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Launch VoidFox web browser
+        execl("./voidfox", "voidfox", NULL);
+        exit(0);
+    } else if (pid > 0) {
+        // Parent process - close tools container
+        gtk_window_close(GTK_WINDOW(window));
+    }
+}
+
 // Dragging functions
 static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window) 
 
@@ -128,7 +145,7 @@ static void activate(GtkApplication *app, gpointer user_data)
 {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Tools");
-    gtk_window_set_default_size(GTK_WINDOW(window), 300, 400);
+    gtk_window_set_default_size(GTK_WINDOW(window), 300, 450);  // Increased height for new button
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
     gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
@@ -165,24 +182,33 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(vbox), sep, FALSE, FALSE, 5);
     
     // File Manager button
-    GtkWidget *fm_btn = gtk_button_new_with_label("File Manager");
+    GtkWidget *fm_btn = gtk_button_new_with_label("📁 File Manager");
     g_signal_connect(fm_btn, "clicked", G_CALLBACK(launch_file_manager), window);
     gtk_box_pack_start(GTK_BOX(vbox), fm_btn, FALSE, FALSE, 2);
     
     // Text Editor button 
-    GtkWidget *editor_btn = gtk_button_new_with_label("Text Editor");
+    GtkWidget *editor_btn = gtk_button_new_with_label("📝 Text Editor");
     g_signal_connect(editor_btn, "clicked", G_CALLBACK(launch_text_editor), window);
     gtk_box_pack_start(GTK_BOX(vbox), editor_btn, FALSE, FALSE, 2);
     
     // Calculator button 
-    GtkWidget *calc_btn = gtk_button_new_with_label("Calculator");
+    GtkWidget *calc_btn = gtk_button_new_with_label("🧮 Calculator");
     g_signal_connect(calc_btn, "clicked", G_CALLBACK(launch_calculator), window);
     gtk_box_pack_start(GTK_BOX(vbox), calc_btn, FALSE, FALSE, 2);
     
     // System Monitor button 
-    GtkWidget *monitor_btn = gtk_button_new_with_label("System Monitor");
+    GtkWidget *monitor_btn = gtk_button_new_with_label("📊 System Monitor");
     g_signal_connect(monitor_btn, "clicked", G_CALLBACK(launch_system_monitor), window);
     gtk_box_pack_start(GTK_BOX(vbox), monitor_btn, FALSE, FALSE, 2);
+    
+    // Web Browser Button
+    GtkWidget *browser_btn = gtk_button_new_with_label("🌐 VoidFox");
+    g_signal_connect(browser_btn, "clicked", G_CALLBACK(launch_web_browser), window);
+    gtk_box_pack_start(GTK_BOX(vbox), browser_btn, FALSE, FALSE, 2);
+    
+    // Add some spacing at the bottom
+    GtkWidget *bottom_spacer = gtk_label_new("");
+    gtk_box_pack_start(GTK_BOX(vbox), bottom_spacer, TRUE, TRUE, 0);
     
     gtk_widget_show_all(window);
     gtk_window_present(GTK_WINDOW(window));
