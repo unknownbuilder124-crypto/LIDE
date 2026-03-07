@@ -15,8 +15,8 @@ typedef struct {
     GtkWidget *forward_button;
     GtkWidget *reload_button;
     GtkWidget *stop_button;
-    GtkWidget *app_menu_button;    // Added
-    GtkWidget *bookmarks_button;   // Added
+    GtkWidget *app_menu_button;
+    GtkWidget *bookmarks_button;
 } BrowserWindow;
 
 // Tab data
@@ -36,5 +36,12 @@ void go_forward(BrowserWindow *browser);
 void reload_page(BrowserWindow *browser);
 void stop_loading(BrowserWindow *browser);
 void update_navigation_buttons(BrowserWindow *browser);
+
+// External function declarations for tab features
+void show_bookmarks_tab(BrowserWindow *browser);
+void show_history_tab(BrowserWindow *browser);
+void show_downloads_tab(BrowserWindow *browser);
+void show_passwords_tab(BrowserWindow *browser);
+void show_extensions_tab(BrowserWindow *browser);
 
 #endif

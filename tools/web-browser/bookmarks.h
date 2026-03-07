@@ -5,8 +5,7 @@
 #include "voidfox.h"
 
 // Bookmark structure
-typedef struct 
-{
+typedef struct {
     char *title;
     char *url;
 } Bookmark;
@@ -17,5 +16,6 @@ void add_bookmark(BrowserWindow *browser, const char *url, const char *title);
 void show_bookmarks_menu(GtkWidget *menu, GtkWidget *button);
 void save_bookmarks(void);
 void load_bookmarks(void);
+void show_bookmarks_tab(BrowserWindow *browser);
 
 #endif

@@ -9,7 +9,6 @@ static GList *bookmarks = NULL;
 
 // Bookmark menu item callback
 static void on_bookmark_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     const char *url = g_object_get_data(G_OBJECT(item), "bookmark-url");
     if (url) {
@@ -19,7 +18,6 @@ static void on_bookmark_clicked(GtkMenuItem *item, BrowserWindow *browser)
 
 // Add current page to bookmarks
 static void on_add_bookmark_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
     
@@ -65,7 +63,6 @@ static void on_add_bookmark_clicked(GtkMenuItem *item, BrowserWindow *browser)
         
         GtkWidget *url_entry = gtk_entry_new();
         gtk_entry_set_text(GTK_ENTRY(url_entry), url);
-        // GTK3 uses gtk_editable_set_editable instead of gtk_entry_set_editable
         gtk_editable_set_editable(GTK_EDITABLE(url_entry), FALSE);
         gtk_box_pack_start(GTK_BOX(vbox), url_entry, FALSE, FALSE, 0);
         
@@ -83,60 +80,25 @@ static void on_add_bookmark_clicked(GtkMenuItem *item, BrowserWindow *browser)
 
 // Manage bookmarks
 static void on_manage_bookmarks_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
-    
-    GtkWidget *dialog = gtk_dialog_new_with_buttons("Manage Bookmarks",
-                                                    GTK_WINDOW(browser->window),
-                                                    GTK_DIALOG_MODAL,
-                                                    "_Close", GTK_RESPONSE_CLOSE,
-                                                    NULL);
-    
-    gtk_window_set_default_size(GTK_WINDOW(dialog), 400, 300);
-    
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
-    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
-    
-    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
-                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
-    
-    GtkWidget *listbox = gtk_list_box_new();
-    gtk_container_add(GTK_CONTAINER(scrolled), listbox);
-    
-    // Populate with bookmarks
-    for (GList *l = bookmarks; l; l = l->next) {
-        Bookmark *bm = l->data;
-        
-        GtkWidget *row = gtk_list_box_row_new();
-        GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-        gtk_container_add(GTK_CONTAINER(row), hbox);
-        
-        GtkWidget *label = gtk_label_new(bm->title);
-        gtk_label_set_xalign(GTK_LABEL(label), 0.0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-        
-        GtkWidget *remove_btn = gtk_button_new_with_label("✕");
-        gtk_widget_set_size_request(remove_btn, 25, 25);
-        g_object_set_data_full(G_OBJECT(remove_btn), "bookmark", bm, NULL);
-        g_signal_connect_swapped(remove_btn, "clicked", G_CALLBACK(g_list_remove), &bookmarks);
-        gtk_box_pack_start(GTK_BOX(hbox), remove_btn, FALSE, FALSE, 0);
-        
-        gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+    show_bookmarks_tab(browser);
+}
+
+// Close tab callback
+static void on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
+{
+    GtkWidget *tab_child = g_object_get_data(G_OBJECT(button), "tab-child");
+    if (tab_child) {
+        int page_num = gtk_notebook_page_num(GTK_NOTEBOOK(browser->notebook), tab_child);
+        if (page_num != -1) {
+            gtk_notebook_remove_page(GTK_NOTEBOOK(browser->notebook), page_num);
+        }
     }
-    
-    gtk_widget_show_all(dialog);
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
 }
 
 // Create bookmarks menu
 GtkWidget* create_bookmarks_menu(BrowserWindow *browser)
-
 {
     GtkWidget *menu = gtk_menu_new();
     
@@ -166,8 +128,69 @@ GtkWidget* create_bookmarks_menu(BrowserWindow *browser)
     return menu;
 }
 
-void add_bookmark(BrowserWindow *browser, const char *url, const char *title)
+// Show bookmarks tab
+void show_bookmarks_tab(BrowserWindow *browser)
+{
+    GtkWidget *tab_content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_set_border_width(GTK_CONTAINER(tab_content), 20);
+    
+    GtkWidget *title = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(title), "<span size='20000' weight='bold'>Bookmarks</span>");
+    gtk_box_pack_start(GTK_BOX(tab_content), title, FALSE, FALSE, 0);
+    
+    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_box_pack_start(GTK_BOX(tab_content), scrolled, TRUE, TRUE, 0);
+    
+    GtkWidget *listbox = gtk_list_box_new();
+    gtk_container_add(GTK_CONTAINER(scrolled), listbox);
+    
+    for (GList *l = bookmarks; l; l = l->next) {
+        Bookmark *bm = l->data;
+        
+        GtkWidget *row = gtk_list_box_row_new();
+        GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+        gtk_container_add(GTK_CONTAINER(row), hbox);
+        
+        GtkWidget *label = gtk_label_new(bm->title);
+        gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+        gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
+        
+        GtkWidget *url_label = gtk_label_new(bm->url);
+        gtk_label_set_xalign(GTK_LABEL(url_label), 0.0);
+        gtk_widget_set_opacity(url_label, 0.7);
+        gtk_box_pack_start(GTK_BOX(hbox), url_label, FALSE, FALSE, 20);
+        
+        GtkWidget *open_btn = gtk_button_new_with_label("Open");
+        g_object_set_data_full(G_OBJECT(open_btn), "url", g_strdup(bm->url), g_free);
+        g_signal_connect_swapped(open_btn, "clicked", G_CALLBACK(load_url), browser);
+        gtk_box_pack_start(GTK_BOX(hbox), open_btn, FALSE, FALSE, 0);
+        
+        gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+    }
+    
+    gtk_widget_show_all(tab_content);
+    
+    // Create tab label with close button
+    GtkWidget *tab_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    GtkWidget *tab_label = gtk_label_new("Bookmarks");
+    GtkWidget *close_btn = gtk_button_new_from_icon_name("window-close", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(close_btn), GTK_RELIEF_NONE);
+    gtk_widget_set_tooltip_text(close_btn, "Close tab");
+    
+    gtk_box_pack_start(GTK_BOX(tab_box), tab_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(tab_box), close_btn, FALSE, FALSE, 0);
+    gtk_widget_show_all(tab_box);
+    
+    g_object_set_data_full(G_OBJECT(close_btn), "tab-child", tab_content, NULL);
+    g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_tab_clicked), browser);
+    
+    int page_num = gtk_notebook_append_page(GTK_NOTEBOOK(browser->notebook), tab_content, tab_box);
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(browser->notebook), page_num);
+}
 
+void add_bookmark(BrowserWindow *browser, const char *url, const char *title)
 {
     (void)browser;
     
@@ -187,7 +210,6 @@ void add_bookmark(BrowserWindow *browser, const char *url, const char *title)
 }
 
 void show_bookmarks_menu(GtkWidget *menu, GtkWidget *button)
-
 {
     gtk_menu_popup_at_widget(GTK_MENU(menu), button,
                              GDK_GRAVITY_SOUTH_WEST,
@@ -196,7 +218,6 @@ void show_bookmarks_menu(GtkWidget *menu, GtkWidget *button)
 }
 
 void save_bookmarks(void)
-
 {
     FILE *f = fopen(BOOKMARKS_FILE, "w");
     if (!f) return;
@@ -210,7 +231,6 @@ void save_bookmarks(void)
 }
 
 void load_bookmarks(void)
-
 {
     FILE *f = fopen(BOOKMARKS_FILE, "r");
     if (!f) return;

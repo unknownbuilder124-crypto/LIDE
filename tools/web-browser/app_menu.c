@@ -1,12 +1,80 @@
 #include "app_menu.h"
+#include "bookmarks.h"
+#include "history.h"
+#include "downloads.h"
+#include "passwords.h"
+#include "extensions.h"
 #include <webkit2/webkit2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+// External references (declared in voidfox.h)
+extern void show_bookmarks_tab(BrowserWindow *browser);
+extern void show_history_tab(BrowserWindow *browser);
+extern void show_downloads_tab(BrowserWindow *browser);
+extern void show_passwords_tab(BrowserWindow *browser);
+extern void show_extensions_tab(BrowserWindow *browser);
+
+// Find in page dialog data
+typedef struct {
+    GtkWidget *dialog;
+    GtkWidget *entry;
+    GtkWidget *case_sensitive_check;
+    GtkWidget *wrap_check;
+    WebKitWebView *web_view;
+    WebKitFindController *find_controller;
+} FindDialogData;
+
+// Find in page callbacks
+static void find_next(GtkButton *button, FindDialogData *data)
+{
+    (void)button;
+    const char *text = gtk_entry_get_text(GTK_ENTRY(data->entry));
+    WebKitFindOptions options = WEBKIT_FIND_OPTIONS_WRAP_AROUND;
+    
+    if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(data->case_sensitive_check))) {
+        options |= WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE;
+    }
+    
+    if (text && *text) {
+        webkit_find_controller_search(data->find_controller, text, options, G_MAXUINT);
+    }
+}
+
+static void find_previous(GtkButton *button, FindDialogData *data)
+{
+    (void)button;
+    const char *text = gtk_entry_get_text(GTK_ENTRY(data->entry));
+    WebKitFindOptions options = WEBKIT_FIND_OPTIONS_WRAP_AROUND | WEBKIT_FIND_OPTIONS_BACKWARDS;
+    
+    if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(data->case_sensitive_check))) {
+        options |= WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE;
+    }
+    
+    if (text && *text) {
+        webkit_find_controller_search(data->find_controller, text, options, G_MAXUINT);
+    }
+}
+
+static void find_dialog_response(GtkDialog *dialog, gint response_id, FindDialogData *data)
+{
+    if (response_id == GTK_RESPONSE_CLOSE || response_id == GTK_RESPONSE_DELETE_EVENT) {
+        // Stop highlighting when closing
+        webkit_find_controller_search_finish(data->find_controller);
+        gtk_widget_destroy(GTK_WIDGET(dialog));
+        g_free(data);
+    }
+}
+
+static void find_entry_activate(GtkEntry *entry, FindDialogData *data)
+{
+    (void)entry;
+    find_next(NULL, data);
+}
+
 // Callback for menu items
 static void on_new_window_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
     // Launch a new browser window
@@ -18,33 +86,47 @@ static void on_new_window_clicked(GtkMenuItem *item, BrowserWindow *browser)
 }
 
 static void on_new_private_window_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
-    // Launch a new private window (could add --private flag later)
+    // Launch a new private window
     pid_t pid = fork();
     if (pid == 0) {
-        execl("./voidfox", "voidfox", NULL);
+        execl("./voidfox", "voidfox", "--private", NULL);
         exit(0);
     }
 }
 
-static void on_print_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
+static void on_bookmarks_clicked(GtkMenuItem *item, BrowserWindow *browser)
 {
     (void)item;
-    int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
-    GtkWidget *current_page_widget = gtk_notebook_get_nth_page(GTK_NOTEBOOK(browser->notebook), current_page);
-    if (!current_page_widget) return;
-    
-    BrowserTab *tab = g_object_get_data(G_OBJECT(current_page_widget), "browser-tab");
-    if (tab && tab->web_view) {
-        webkit_web_view_run_javascript(tab->web_view, "window.print();", NULL, NULL, NULL);
-    }
+    show_bookmarks_tab(browser);
 }
 
-static void on_save_page_clicked(GtkMenuItem *item, BrowserWindow *browser)
+static void on_history_clicked(GtkMenuItem *item, BrowserWindow *browser)
+{
+    (void)item;
+    show_history_tab(browser);
+}
 
+static void on_downloads_clicked(GtkMenuItem *item, BrowserWindow *browser)
+{
+    (void)item;
+    show_downloads_tab(browser);
+}
+
+static void on_passwords_clicked(GtkMenuItem *item, BrowserWindow *browser)
+{
+    (void)item;
+    show_passwords_tab(browser);
+}
+
+static void on_extensions_clicked(GtkMenuItem *item, BrowserWindow *browser)
+{
+    (void)item;
+    show_extensions_tab(browser);
+}
+
+static void on_print_clicked(GtkMenuItem *item, BrowserWindow *browser)
 {
     (void)item;
     int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
@@ -53,63 +135,82 @@ static void on_save_page_clicked(GtkMenuItem *item, BrowserWindow *browser)
     
     BrowserTab *tab = g_object_get_data(G_OBJECT(current_page_widget), "browser-tab");
     if (tab && tab->web_view) {
-        // Simple save dialog
-        GtkWidget *dialog = gtk_file_chooser_dialog_new("Save Page As",
-                                                        GTK_WINDOW(browser->window),
-                                                        GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                        "_Cancel", GTK_RESPONSE_CANCEL,
-                                                        "_Save", GTK_RESPONSE_ACCEPT,
-                                                        NULL);
-        
-        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-            char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-            g_free(filename);
-        }
-        gtk_widget_destroy(dialog);
+        // Use non-deprecated function
+        webkit_web_view_evaluate_javascript(tab->web_view, "window.print();", -1, NULL, NULL, NULL, NULL, NULL);
     }
 }
 
 static void on_find_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
-    // Simple find dialog
-    GtkWidget *dialog = gtk_dialog_new_with_buttons("Find in Page",
-                                                     GTK_WINDOW(browser->window),
-                                                     GTK_DIALOG_MODAL,
-                                                     "_Close", GTK_RESPONSE_CLOSE,
-                                                     NULL);
     
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    GtkWidget *entry = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Search...");
-    gtk_box_pack_start(GTK_BOX(content), entry, FALSE, FALSE, 10);
-    gtk_widget_show_all(dialog);
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-}
-
-static void on_translate_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
-{
-    (void)item;
     int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
     GtkWidget *current_page_widget = gtk_notebook_get_nth_page(GTK_NOTEBOOK(browser->notebook), current_page);
     if (!current_page_widget) return;
     
     BrowserTab *tab = g_object_get_data(G_OBJECT(current_page_widget), "browser-tab");
-    if (tab && tab->web_view) {
-        const char *uri = webkit_web_view_get_uri(tab->web_view);
-        if (uri && *uri) {
-            char *translate_url = g_strdup_printf("https://translate.google.com/translate?sl=auto&tl=en&u=%s", uri);
-            webkit_web_view_load_uri(tab->web_view, translate_url);
-            g_free(translate_url);
-        }
-    }
+    if (!tab || !tab->web_view) return;
+    
+    // Create find dialog
+    FindDialogData *data = g_new(FindDialogData, 1);
+    data->web_view = tab->web_view;
+    data->find_controller = webkit_web_view_get_find_controller(tab->web_view);
+    
+    data->dialog = gtk_dialog_new_with_buttons("Find in Page",
+                                               GTK_WINDOW(browser->window),
+                                               GTK_DIALOG_MODAL,
+                                               "_Close", GTK_RESPONSE_CLOSE,
+                                               NULL);
+    
+    gtk_window_set_default_size(GTK_WINDOW(data->dialog), 450, 200);
+    
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(data->dialog));
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
+    
+    // Search entry
+    GtkWidget *hbox1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox1, FALSE, FALSE, 0);
+    
+    GtkWidget *search_label = gtk_label_new("Search:");
+    gtk_box_pack_start(GTK_BOX(hbox1), search_label, FALSE, FALSE, 0);
+    
+    data->entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(data->entry), "Enter text to find...");
+    gtk_box_pack_start(GTK_BOX(hbox1), data->entry, TRUE, TRUE, 0);
+    
+    // Options
+    GtkWidget *options_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_box_pack_start(GTK_BOX(vbox), options_box, FALSE, FALSE, 0);
+    
+    data->case_sensitive_check = gtk_check_button_new_with_label("Case sensitive");
+    gtk_box_pack_start(GTK_BOX(options_box), data->case_sensitive_check, FALSE, FALSE, 0);
+    
+    data->wrap_check = gtk_check_button_new_with_label("Wrap around");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(data->wrap_check), TRUE);
+    gtk_box_pack_start(GTK_BOX(options_box), data->wrap_check, FALSE, FALSE, 0);
+    
+    // Navigation buttons
+    GtkWidget *hbox2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, FALSE, 0);
+    
+    GtkWidget *prev_btn = gtk_button_new_with_label("Previous");
+    GtkWidget *next_btn = gtk_button_new_with_label("Next");
+    gtk_box_pack_start(GTK_BOX(hbox2), prev_btn, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox2), next_btn, TRUE, TRUE, 0);
+    
+    // Connect signals
+    g_signal_connect(next_btn, "clicked", G_CALLBACK(find_next), data);
+    g_signal_connect(prev_btn, "clicked", G_CALLBACK(find_previous), data);
+    g_signal_connect(data->entry, "activate", G_CALLBACK(find_entry_activate), data);
+    
+    g_signal_connect(data->dialog, "response", G_CALLBACK(find_dialog_response), data);
+    
+    gtk_widget_show_all(data->dialog);
 }
 
 static void on_zoom_in_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
     int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
@@ -124,7 +225,6 @@ static void on_zoom_in_clicked(GtkMenuItem *item, BrowserWindow *browser)
 }
 
 static void on_zoom_out_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
     int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
@@ -139,7 +239,6 @@ static void on_zoom_out_clicked(GtkMenuItem *item, BrowserWindow *browser)
 }
 
 static void on_zoom_reset_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
     int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
@@ -153,90 +252,72 @@ static void on_zoom_reset_clicked(GtkMenuItem *item, BrowserWindow *browser)
 }
 
 static void on_settings_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(browser->window),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "VoidFox Settings\n\n"
-                                              "Home Page: about:blank\n"
-                                              "Search Engine: Google\n"
-                                              "Hardware Acceleration: Disabled");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-}
-
-static void on_history_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
-{
-    (void)item;
-    // Simple history view - could be expanded
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(browser->window),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "History feature coming soon!");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-}
-
-static void on_downloads_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
-{
-    (void)item;
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(browser->window),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "Downloads feature coming soon!");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-}
-
-static void on_passwords_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
-{
-    (void)item;
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(browser->window),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "Password manager coming soon!");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
-}
-
-static void on_extensions_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
-{
-    (void)item;
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(browser->window),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "Extensions support coming soon!");
+    // Simple settings dialog
+    GtkWidget *dialog = gtk_dialog_new_with_buttons("Settings",
+                                                     GTK_WINDOW(browser->window),
+                                                     GTK_DIALOG_MODAL,
+                                                     "_Close", GTK_RESPONSE_CLOSE,
+                                                     NULL);
+    
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 400, 300);
+    
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
+    
+    // Home page setting
+    GtkWidget *home_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), home_hbox, FALSE, FALSE, 0);
+    
+    GtkWidget *home_label = gtk_label_new("Home Page:");
+    gtk_box_pack_start(GTK_BOX(home_hbox), home_label, FALSE, FALSE, 0);
+    
+    GtkWidget *home_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(home_entry), "about:blank");
+    gtk_box_pack_start(GTK_BOX(home_hbox), home_entry, TRUE, TRUE, 0);
+    
+    // Search engine setting
+    GtkWidget *search_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), search_hbox, FALSE, FALSE, 0);
+    
+    GtkWidget *search_label = gtk_label_new("Search Engine:");
+    gtk_box_pack_start(GTK_BOX(search_hbox), search_label, FALSE, FALSE, 0);
+    
+    GtkWidget *search_combo = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(search_combo), "Google");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(search_combo), "DuckDuckGo");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(search_combo), "Bing");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(search_combo), 0);
+    gtk_box_pack_start(GTK_BOX(search_hbox), search_combo, TRUE, TRUE, 0);
+    
+    gtk_widget_show_all(dialog);
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
 }
 
 static void on_report_broken_clicked(GtkMenuItem *item, BrowserWindow *browser)
-
 {
     (void)item;
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(browser->window),
-                                              GTK_DIALOG_MODAL,
-                                              GTK_MESSAGE_INFO,
-                                              GTK_BUTTONS_CLOSE,
-                                              "Report broken site feature coming soon!");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
+    int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
+    GtkWidget *current_page_widget = gtk_notebook_get_nth_page(GTK_NOTEBOOK(browser->notebook), current_page);
+    if (!current_page_widget) return;
+    
+    BrowserTab *tab = g_object_get_data(G_OBJECT(current_page_widget), "browser-tab");
+    if (tab && tab->web_view) {
+        const char *uri = webkit_web_view_get_uri(tab->web_view);
+        if (uri && *uri) {
+            char *report_url = g_strdup_printf("https://www.google.com/search?q=report+broken+site+%s", uri);
+            webkit_web_view_load_uri(tab->web_view, report_url);
+            g_free(report_url);
+        }
+    }
 }
 
 // Create the application menu
 GtkWidget* create_application_menu(BrowserWindow *browser)
-
 {
     GtkWidget *menu = gtk_menu_new();
     
@@ -253,6 +334,7 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep1);
     
     GtkWidget *bookmarks_item = gtk_menu_item_new_with_label("Bookmarks");
+    g_signal_connect(bookmarks_item, "activate", G_CALLBACK(on_bookmarks_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), bookmarks_item);
     
     GtkWidget *history_item = gtk_menu_item_new_with_label("History");
@@ -278,17 +360,9 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
     g_signal_connect(print_item, "activate", G_CALLBACK(on_print_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), print_item);
     
-    GtkWidget *save_page_item = gtk_menu_item_new_with_label("Save page as...");
-    g_signal_connect(save_page_item, "activate", G_CALLBACK(on_save_page_clicked), browser);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), save_page_item);
-    
     GtkWidget *find_item = gtk_menu_item_new_with_label("Find in page...");
     g_signal_connect(find_item, "activate", G_CALLBACK(on_find_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), find_item);
-    
-    GtkWidget *translate_item = gtk_menu_item_new_with_label("Translate page...");
-    g_signal_connect(translate_item, "activate", G_CALLBACK(on_translate_clicked), browser);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), translate_item);
     
     GtkWidget *sep3 = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep3);
@@ -329,7 +403,6 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
 }
 
 void show_app_menu(GtkWidget *menu, GtkWidget *button)
-
 {
     gtk_menu_popup_at_widget(GTK_MENU(menu), button,
                              GDK_GRAVITY_SOUTH_WEST,
