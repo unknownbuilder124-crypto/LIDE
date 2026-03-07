@@ -139,7 +139,7 @@ check-webkit:
 		echo "  On Arch: sudo pacman -S webkit2gtk"; \
 	fi
 
-# Help target
+
 help:
 	@echo "Blackline Desktop Environment - Makefile"
 	@echo ""
