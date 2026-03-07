@@ -4,7 +4,19 @@ GTK_CFLAGS = $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS = $(shell pkg-config --libs gtk+-3.0)
 X11_LIBS = -lX11
 
-all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor
+# WebKitGTK auto-detection for VoidFox
+WEBKIT_PKG := $(shell pkg-config --exists webkit2gtk-4.1 && echo webkit2gtk-4.1 || \
+                     (pkg-config --exists webkit2gtk-4.0 && echo webkit2gtk-4.0) || \
+                     echo "")
+ifeq ($(WEBKIT_PKG),)
+    WEBKIT_CFLAGS = 
+    WEBKIT_LIBS = 
+else
+    WEBKIT_CFLAGS = $(shell pkg-config --cflags $(WEBKIT_PKG))
+    WEBKIT_LIBS = $(shell pkg-config --libs $(WEBKIT_PKG))
+endif
+
+all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox
 
 blackline-wm: wm/wm.c
 	$(CC) $(CFLAGS) -o $@ $< $(X11_LIBS)
@@ -48,12 +60,27 @@ tools/system-monitor/memory.o: tools/system-monitor/memory.c tools/system-monito
 tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-monitor/monitor.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
+# VoidFox Web Browser
+voidfox: tools/web-browser/voidfox.o tools/web-browser/browser.o tools/web-browser/tab.o
+	$(CC) -o $@ $^ $(GTK_LIBS) $(WEBKIT_LIBS)
+	@echo "Built VoidFox with $(WEBKIT_PKG)"
+
+tools/web-browser/voidfox.o: tools/web-browser/voidfox.c tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/browser.o: tools/web-browser/browser.c tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/tab.o: tools/web-browser/tab.c tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
 # Individual object files
 %.o: %.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 clean:
-	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor *.o tools/system-monitor/*.o
+	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox
+	rm -f *.o tools/system-monitor/*.o tools/web-browser/*.o
 
 # Install all binaries
 install: all
@@ -66,6 +93,7 @@ install: all
 	sudo cp blackline-editor /usr/local/bin/
 	sudo cp blackline-calculator /usr/local/bin/
 	sudo cp blackline-system-monitor /usr/local/bin/
+	sudo cp voidfox /usr/local/bin/
 
 # Uninstall all binaries
 uninstall:
@@ -78,6 +106,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/blackline-editor
 	sudo rm -f /usr/local/bin/blackline-calculator
 	sudo rm -f /usr/local/bin/blackline-system-monitor
+	sudo rm -f /usr/local/bin/voidfox
 
 # Run commands
 run-editor: blackline-editor
@@ -92,4 +121,50 @@ run-calculator: blackline-calculator
 run-system-monitor: blackline-system-monitor
 	./blackline-system-monitor
 
-.PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor
+run-voidfox: voidfox
+	./voidfox
+
+# WebKit dependency check
+check-webkit:
+	@echo "Checking WebKitGTK installation..."
+	@if pkg-config --exists webkit2gtk-4.1; then \
+		echo "✓ WebKitGTK 4.1 found: $$(pkg-config --modversion webkit2gtk-4.1)"; \
+	elif pkg-config --exists webkit2gtk-4.0; then \
+		echo "✓ WebKitGTK 4.0 found: $$(pkg-config --modversion webkit2gtk-4.0)"; \
+	else \
+		echo "✗ WebKitGTK not found!"; \
+		echo "  On Debian/Ubuntu: sudo apt install libwebkit2gtk-4.0-dev"; \
+		echo "  On Kali Linux: sudo apt install libwebkit2gtk-4.1-dev"; \
+		echo "  On Fedora: sudo dnf install webkit2gtk3-devel"; \
+		echo "  On Arch: sudo pacman -S webkit2gtk"; \
+	fi
+
+# Help target
+help:
+	@echo "Blackline Desktop Environment - Makefile"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all                    - Build all components"
+	@echo "  blackline-wm           - Build window manager"
+	@echo "  blackline-panel        - Build panel"
+	@echo "  blackline-launcher      - Build application launcher"
+	@echo "  blackline-tools         - Build tools container"
+	@echo "  blackline-background    - Build background setter"
+	@echo "  blackline-fm            - Build file manager"
+	@echo "  blackline-editor        - Build text editor"
+	@echo "  blackline-calculator    - Build calculator"
+	@echo "  blackline-system-monitor - Build system monitor"
+	@echo "  voidfox                 - Build VoidFox web browser"
+	@echo "  clean                   - Remove all binaries and object files"
+	@echo "  install                 - Install all binaries to /usr/local/bin"
+	@echo "  uninstall               - Remove all binaries from /usr/local/bin"
+	@echo "  check-webkit            - Check WebKitGTK installation"
+	@echo ""
+	@echo "Run targets:"
+	@echo "  run-editor              - Run text editor"
+	@echo "  run-wm                  - Run window manager"
+	@echo "  run-calculator          - Run calculator"
+	@echo "  run-system-monitor      - Run system monitor"
+	@echo "  run-voidfox             - Run VoidFox web browser"
+
+.PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor run-voidfox check-webkit help
