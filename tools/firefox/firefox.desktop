@@ -1,0 +1,25 @@
+[Desktop Entry]
+Version=1.0
+Name=Firefox
+Name[bn]=ফায়ারফক্স
+GenericName=Web Browser
+GenericName[bn]=ওয়েব ব্রাউজার
+Comment=Browse the World Wide Web
+Comment[bn]=ওয়ার্ল্ড ওয়াইড ওয়েব ব্রাউজ করুন
+Exec=/usr/local/bin/lide-firefox %u
+Icon=/usr/local/share/lide/firefox/icons/firefox.png
+Terminal=false
+Type=Application
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;x-scheme-handler/chrome;video/webm;application/x-xpinstall;
+StartupNotify=true
+Categories=Network;WebBrowser;
+Keywords=web;browser;internet;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=Open a New Window
+Exec=/usr/local/bin/lide-firefox --new-window %u
+
+[Desktop Action new-private-window]
+Name=Open a New Private Window
+Exec=/usr/local/bin/lide-firefox --private-window %u
