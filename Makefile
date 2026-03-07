@@ -60,18 +60,28 @@ tools/system-monitor/memory.o: tools/system-monitor/memory.c tools/system-monito
 tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-monitor/monitor.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
-# VoidFox Web Browser
-voidfox: tools/web-browser/voidfox.o tools/web-browser/browser.o tools/web-browser/tab.o
+# VoidFox Web Browser with App Menu and Bookmarks
+voidfox: tools/web-browser/voidfox.o tools/web-browser/browser.o tools/web-browser/tab.o \
+         tools/web-browser/app_menu.o tools/web-browser/bookmarks.o
 	$(CC) -o $@ $^ $(GTK_LIBS) $(WEBKIT_LIBS)
 	@echo "Built VoidFox with $(WEBKIT_PKG)"
 
 tools/web-browser/voidfox.o: tools/web-browser/voidfox.c tools/web-browser/voidfox.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
-tools/web-browser/browser.o: tools/web-browser/browser.c tools/web-browser/voidfox.h
+tools/web-browser/browser.o: tools/web-browser/browser.c tools/web-browser/voidfox.h \
+                            tools/web-browser/app_menu.h tools/web-browser/bookmarks.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 tools/web-browser/tab.o: tools/web-browser/tab.c tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/app_menu.o: tools/web-browser/app_menu.c tools/web-browser/app_menu.h \
+                             tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/bookmarks.o: tools/web-browser/bookmarks.c tools/web-browser/bookmarks.h \
+                              tools/web-browser/voidfox.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 # Individual object files
@@ -138,7 +148,6 @@ check-webkit:
 		echo "  On Fedora: sudo dnf install webkit2gtk3-devel"; \
 		echo "  On Arch: sudo pacman -S webkit2gtk"; \
 	fi
-
 
 help:
 	@echo "Blackline Desktop Environment - Makefile"

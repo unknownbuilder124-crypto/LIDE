@@ -15,7 +15,8 @@ typedef struct {
     GtkWidget *forward_button;
     GtkWidget *reload_button;
     GtkWidget *stop_button;
-    GtkWidget *background_image;  
+    GtkWidget *app_menu_button;    // Added
+    GtkWidget *bookmarks_button;   // Added
 } BrowserWindow;
 
 // Tab data

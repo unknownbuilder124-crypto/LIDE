@@ -1,4 +1,6 @@
 #include "voidfox.h"
+#include "app_menu.h"
+#include "bookmarks.h"
 #include <ctype.h>
 #include <stdio.h>
 
@@ -272,7 +274,6 @@ static gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
 // Browser window creation
 void voidfox_activate(GtkApplication *app, gpointer user_data) {
 
-
     DEBUG_PRINT("voidfox_activate started");
     
     BrowserWindow *browser = g_new0(BrowserWindow, 1);
@@ -348,6 +349,29 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 5);
     DEBUG_PRINT("Toolbar created");
+
+    // Application menu button (hamburger menu)
+    GtkWidget *app_menu_button = gtk_menu_button_new();
+    gtk_button_set_label(GTK_BUTTON(app_menu_button), "☰");
+    gtk_widget_set_tooltip_text(app_menu_button, "Menu");
+    gtk_box_pack_start(GTK_BOX(toolbar), app_menu_button, FALSE, FALSE, 0);
+    browser->app_menu_button = app_menu_button;
+
+    // Create and attach app menu
+    GtkWidget *app_menu = create_application_menu(browser);
+    gtk_menu_button_set_popup(GTK_MENU_BUTTON(app_menu_button), app_menu);
+
+    // Bookmarks button
+    GtkWidget *bookmarks_button = gtk_menu_button_new();
+    gtk_button_set_label(GTK_BUTTON(bookmarks_button), "★");
+    gtk_widget_set_tooltip_text(bookmarks_button, "Bookmarks");
+    gtk_box_pack_start(GTK_BOX(toolbar), bookmarks_button, FALSE, FALSE, 0);
+    browser->bookmarks_button = bookmarks_button;
+
+    // Load bookmarks and create menu
+    load_bookmarks();
+    GtkWidget *bookmarks_menu = create_bookmarks_menu(browser);
+    gtk_menu_button_set_popup(GTK_MENU_BUTTON(bookmarks_button), bookmarks_menu);
 
     // Back button
     browser->back_button = gtk_button_new_from_icon_name("go-previous", GTK_ICON_SIZE_MENU);
