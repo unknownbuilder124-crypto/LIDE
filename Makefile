@@ -60,9 +60,11 @@ tools/system-monitor/memory.o: tools/system-monitor/memory.c tools/system-monito
 tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-monitor/monitor.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
-# VoidFox Web Browser with App Menu and Bookmarks
+# VoidFox Web Browser with all features
 voidfox: tools/web-browser/voidfox.o tools/web-browser/browser.o tools/web-browser/tab.o \
-         tools/web-browser/app_menu.o tools/web-browser/bookmarks.o
+         tools/web-browser/app_menu.o tools/web-browser/bookmarks.o \
+         tools/web-browser/history.o tools/web-browser/downloads.o \
+         tools/web-browser/passwords.o tools/web-browser/extensions.o
 	$(CC) -o $@ $^ $(GTK_LIBS) $(WEBKIT_LIBS)
 	@echo "Built VoidFox with $(WEBKIT_PKG)"
 
@@ -70,18 +72,38 @@ tools/web-browser/voidfox.o: tools/web-browser/voidfox.c tools/web-browser/voidf
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 tools/web-browser/browser.o: tools/web-browser/browser.c tools/web-browser/voidfox.h \
-                            tools/web-browser/app_menu.h tools/web-browser/bookmarks.h
+                            tools/web-browser/app_menu.h tools/web-browser/bookmarks.h \
+                            tools/web-browser/history.h tools/web-browser/downloads.h \
+                            tools/web-browser/passwords.h tools/web-browser/extensions.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 tools/web-browser/tab.o: tools/web-browser/tab.c tools/web-browser/voidfox.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 tools/web-browser/app_menu.o: tools/web-browser/app_menu.c tools/web-browser/app_menu.h \
-                             tools/web-browser/voidfox.h
+                             tools/web-browser/voidfox.h tools/web-browser/bookmarks.h \
+                             tools/web-browser/history.h tools/web-browser/downloads.h \
+                             tools/web-browser/passwords.h tools/web-browser/extensions.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 tools/web-browser/bookmarks.o: tools/web-browser/bookmarks.c tools/web-browser/bookmarks.h \
                               tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/history.o: tools/web-browser/history.c tools/web-browser/history.h \
+                            tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/downloads.o: tools/web-browser/downloads.c tools/web-browser/downloads.h \
+                              tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/passwords.o: tools/web-browser/passwords.c tools/web-browser/passwords.h \
+                              tools/web-browser/voidfox.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
+
+tools/web-browser/extensions.o: tools/web-browser/extensions.c tools/web-browser/extensions.h \
+                               tools/web-browser/voidfox.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -c $< -o $@
 
 # Individual object files
