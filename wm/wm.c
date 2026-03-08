@@ -20,7 +20,7 @@ static Atom net_wm_window_type;
 static Atom net_wm_window_type_dock;
 static Atom net_wm_window_type_normal;
 
-// Window list structure - RENAMED to avoid conflict with X11 Window type
+// Window list structure 
 typedef struct ClientWindow {
     Window id;
     int x, y;
@@ -51,7 +51,9 @@ static void add_window(Window id) {
 }
 
 // Find window in list
-static ClientWindow* find_window(Window id) {
+static ClientWindow* find_window(Window id) 
+
+{
     ClientWindow *curr = window_list;
     while (curr) {
         if (curr->id == id) return curr;
@@ -61,7 +63,9 @@ static ClientWindow* find_window(Window id) {
 }
 
 // Remove window from list
-static void remove_window(Window id) {
+static void remove_window(Window id) 
+
+{
     ClientWindow **curr = &window_list;
     while (*curr) {
         if ((*curr)->id == id) {
@@ -75,13 +79,17 @@ static void remove_window(Window id) {
 }
 
 // Get screen dimensions
-static void get_screen_size(Display *d, int screen, int *width, int *height) {
+static void get_screen_size(Display *d, int screen, int *width, int *height)
+
+{
     *width = DisplayWidth(d, screen);
     *height = DisplayHeight(d, screen);
 }
 
 // Maximize window
-static void maximize_window(Display *d, Window win) {
+static void maximize_window(Display *d, Window win) 
+
+{
     ClientWindow *w = find_window(win);
     if (!w) return;
     
@@ -98,7 +106,7 @@ static void maximize_window(Display *d, Window win) {
         int screen_width, screen_height;
         get_screen_size(d, DefaultScreen(d), &screen_width, &screen_height);
         
-        // Maximize (account for panel height - 30px for panel)
+        // Maximize 
         w->x = 0;
         w->y = 30; // Leave space for panel
         w->width = screen_width;
@@ -118,7 +126,9 @@ static void maximize_window(Display *d, Window win) {
 }
 
 // Unmaximize window
-static void unmaximize_window(Display *d, Window win) {
+static void unmaximize_window(Display *d, Window win) 
+
+{
     ClientWindow *w = find_window(win);
     if (!w || !w->is_maximized) return;
     
@@ -137,7 +147,9 @@ static void unmaximize_window(Display *d, Window win) {
 }
 
 // Handle maximize/unmaximize request
-static void handle_maximize_request(Display *d, Window win, long action) {
+static void handle_maximize_request(Display *d, Window win, long action)
+
+{
     ClientWindow *w = find_window(win);
     if (!w) return;
     
@@ -244,9 +256,9 @@ int main(void)
             }
             
             case UnmapNotify: {
-                // Window was unmapped (minimized)
-                if (ev.xunmap.window != root) {
-                    // Nothing to do, just let it be unmapped
+                if (ev.xunmap.window != root) 
+                {
+                    // Nothing to do, just let it be
                 }
                 break;
             }
@@ -275,14 +287,14 @@ int main(void)
             }
             
             case ClientMessage: {
-                // Handle client messages (including minimize and maximize requests)
+                // Handle client messages 
                 if (ev.xclient.message_type == wm_change_state) {
                     if (ev.xclient.data.l[0] == IconicState) {
                         // Window wants to be minimized
                         XUnmapWindow(d, ev.xclient.window);
                     }
                 }
-                // Handle EWMH state changes (maximize, fullscreen, etc.)
+                // Handle EWMH state changes 
                 else if (ev.xclient.message_type == net_wm_state) {
                     long action = ev.xclient.data.l[0];
                     Atom property1 = ev.xclient.data.l[1];
