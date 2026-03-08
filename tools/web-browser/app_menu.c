@@ -4,6 +4,7 @@
 #include "downloads.h"
 #include "passwords.h"
 #include "extensions.h"
+#include "settings.h"
 #include <webkit2/webkit2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -266,52 +267,12 @@ static void on_zoom_reset_clicked(GtkMenuItem *item, BrowserWindow *browser)
     }
 }
 
+// Updated settings callback to use the proper settings dialog
 static void on_settings_clicked(GtkMenuItem *item, BrowserWindow *browser)
 
 {
     (void)item;
-    // Simple settings dialog
-    GtkWidget *dialog = gtk_dialog_new_with_buttons("Settings",
-                                                     GTK_WINDOW(browser->window),
-                                                     GTK_DIALOG_MODAL,
-                                                     "_Close", GTK_RESPONSE_CLOSE,
-                                                     NULL);
-    
-    gtk_window_set_default_size(GTK_WINDOW(dialog), 400, 300);
-    
-    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
-    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
-    
-    // Home page setting
-    GtkWidget *home_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    gtk_box_pack_start(GTK_BOX(vbox), home_hbox, FALSE, FALSE, 0);
-    
-    GtkWidget *home_label = gtk_label_new("Home Page:");
-    gtk_box_pack_start(GTK_BOX(home_hbox), home_label, FALSE, FALSE, 0);
-    
-    GtkWidget *home_entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(home_entry), "about:blank");
-    gtk_box_pack_start(GTK_BOX(home_hbox), home_entry, TRUE, TRUE, 0);
-    
-    // Search engine setting
-    GtkWidget *search_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    gtk_box_pack_start(GTK_BOX(vbox), search_hbox, FALSE, FALSE, 0);
-    
-    GtkWidget *search_label = gtk_label_new("Search Engine:");
-    gtk_box_pack_start(GTK_BOX(search_hbox), search_label, FALSE, FALSE, 0);
-    
-    GtkWidget *search_combo = gtk_combo_box_text_new();
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(search_combo), "Google");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(search_combo), "DuckDuckGo");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(search_combo), "Bing");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(search_combo), 0);
-    gtk_box_pack_start(GTK_BOX(search_hbox), search_combo, TRUE, TRUE, 0);
-    
-    gtk_widget_show_all(dialog);
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
+    show_settings_dialog(browser);
 }
 
 static void on_report_broken_clicked(GtkMenuItem *item, BrowserWindow *browser)
@@ -404,6 +365,7 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
     
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), zoom_item);
     
+    // Settings item - now uses the proper settings dialog
     GtkWidget *settings_item = gtk_menu_item_new_with_label("Settings");
     g_signal_connect(settings_item, "activate", G_CALLBACK(on_settings_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), settings_item);

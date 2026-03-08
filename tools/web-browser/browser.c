@@ -2,12 +2,9 @@
 #include "app_menu.h"
 #include "bookmarks.h"
 #include "history.h"
+#include "settings.h"
 #include <ctype.h>
 #include <stdio.h>
-
-// Default search engine
-#define DEFAULT_SEARCH_URL "https://www.google.com/search?q=%s"
-#define HOME_PAGE "about:blank"
 
 // Debug macro - comment out to disable debug output
 #define DEBUG 1
@@ -44,35 +41,6 @@ static int is_valid_url(const char *str)
     }
     
     return 0;
-}
-
-// Helper function to perform web search
-static char* create_search_url(const char *query) 
-
-{
-    if (!query || *query == '\0') return g_strdup(HOME_PAGE);
-    
-    // URL encode the query - simple version
-    GString *encoded = g_string_new("");
-    const char *p = query;
-    
-    while (*p) {
-        if (isalnum(*p) || *p == ' ' || *p == '-' || *p == '_' || *p == '.') {
-            if (*p == ' ') {
-                g_string_append_c(encoded, '+');
-            } else {
-                g_string_append_c(encoded, *p);
-            }
-        } else {
-            g_string_append_printf(encoded, "%%%02X", (unsigned char)*p);
-        }
-        p++;
-    }
-    
-    char *search_url = g_strdup_printf(DEFAULT_SEARCH_URL, encoded->str);
-    g_string_free(encoded, TRUE);
-    
-    return search_url;
 }
 
 // Dragging handlers
@@ -187,7 +155,7 @@ static void on_go_clicked(GtkButton *button, BrowserWindow *browser)
 static void on_home_clicked(GtkButton *button, BrowserWindow *browser) 
 
 {
-    load_url(browser, HOME_PAGE);
+    load_url(browser, settings.home_page);
 }
 
 static void on_search_clicked(GtkButton *button, BrowserWindow *browser) 
@@ -195,16 +163,14 @@ static void on_search_clicked(GtkButton *button, BrowserWindow *browser)
 {
     const char *text = gtk_entry_get_text(GTK_ENTRY(browser->url_entry));
     if (text && *text) {
-        char *search_url = create_search_url(text);
-        load_url(browser, search_url);
-        g_free(search_url);
+        load_url(browser, text); // load_url will handle search via settings
     }
 }
 
 static void on_new_tab_clicked(GtkButton *button, BrowserWindow *browser) 
 
 {
-    new_tab(browser, HOME_PAGE);
+    new_tab(browser, settings.home_page);
 }
 
 static void on_tab_switched(GtkNotebook *notebook, GtkWidget *page, guint page_num, BrowserWindow *browser) 
@@ -237,8 +203,10 @@ static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent event, Brow
         if (uri && *uri) {
             printf("Page loaded: %s (%s)\n", uri, title ? title : "no title");
             
-            // Add to history
-            add_to_history(uri, title);
+            // Add to history if enabled
+            if (settings.remember_history) {
+                add_to_history(uri, title);
+            }
             
             // Update URL bar only if this is the current tab
             int current_page = gtk_notebook_get_current_page(GTK_NOTEBOOK(browser->notebook));
@@ -449,6 +417,9 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *sep2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), sep2, FALSE, FALSE, 0);
 
+    // Load settings
+    load_settings();
+
     // Notebook for tabs
     browser->notebook = gtk_notebook_new();
     if (!browser->notebook) {
@@ -462,25 +433,38 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
 
     g_signal_connect(browser->notebook, "switch-page", G_CALLBACK(on_tab_switched), browser);
 
-    // Apply dark theme with title bar styling
+    // Apply dark theme with title bar styling (based on settings)
     GtkCssProvider *provider = gtk_css_provider_new();
-    gtk_css_provider_load_from_data(provider,
-        "window { background-color: #0b0f14; color: #ffffff; }\n"
-        "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #00ff88; }\n"
-        "button { background-color: #1e2429; color: #00ff88; border: none; }\n"
-        "button:hover { background-color: #2a323a; }\n"
-        "notebook { background-color: #0b0f14; }\n"
-        "#title-bar { background-color: #0b0f14; border-bottom: 2px solid #00ff88; }\n",
-        -1, NULL);
+    if (settings.dark_mode) {
+        gtk_css_provider_load_from_data(provider,
+            "window { background-color: #0b0f14; color: #ffffff; }\n"
+            "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #00ff88; }\n"
+            "button { background-color: #1e2429; color: #00ff88; border: none; }\n"
+            "button:hover { background-color: #2a323a; }\n"
+            "notebook { background-color: #0b0f14; }\n"
+            "#title-bar { background-color: #0b0f14; border-bottom: 2px solid #00ff88; }\n",
+            -1, NULL);
+    } else {
+        gtk_css_provider_load_from_data(provider,
+            "window { background-color: #f0f0f0; color: #000000; }\n"
+            "entry { background-color: #ffffff; color: #000000; border: 1px solid #888888; }\n"
+            "button { background-color: #e0e0e0; color: #000000; border: none; }\n"
+            "button:hover { background-color: #d0d0d0; }\n"
+            "notebook { background-color: #f0f0f0; }\n"
+            "#title-bar { background-color: #e0e0e0; border-bottom: 2px solid #888888; }\n",
+            -1, NULL);
+    }
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-    // Load history at startup
-    load_history();
+    // Load history at startup if enabled
+    if (settings.remember_history) {
+        load_history();
+    }
     
     DEBUG_PRINT("Creating first tab...");
     // Create first tab
-    new_tab(browser, HOME_PAGE);
+    new_tab(browser, settings.home_page);
     DEBUG_PRINT("First tab created");
 
     gtk_widget_show_all(browser->window);
@@ -509,22 +493,13 @@ void new_tab(BrowserWindow *browser, const char *url)
     }
     DEBUG_PRINT("WebView created");
     
-    // Disable hardware acceleration to avoid crashes
-    WebKitSettings *settings = webkit_web_view_get_settings(web_view);
-    if (settings) {
-        webkit_settings_set_hardware_acceleration_policy(settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER);
-        webkit_settings_set_enable_webgl(settings, FALSE);
-        
-        // Set a proper user agent
-        webkit_settings_set_user_agent(settings, 
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-    }
+    // Apply settings to web view
+    apply_settings_to_web_view(web_view);
     
-    // Connect signals (removed download-started signal)
     g_signal_connect(web_view, "load-changed", G_CALLBACK(on_load_changed), browser);
 
     // Load URL
-    const char *load_url = url ? url : HOME_PAGE;
+    const char *load_url = url ? url : settings.home_page;
     DEBUG_PRINT("Loading URL: %s", load_url);
     webkit_web_view_load_uri(web_view, load_url);
 
@@ -588,7 +563,7 @@ void close_tab(BrowserWindow *browser, GtkWidget *tab_child)
     if (page_num != -1) {
         // Don't close if it's the last tab 
         if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(browser->notebook)) <= 1) {
-            new_tab(browser, HOME_PAGE);
+            new_tab(browser, settings.home_page);
         }
         gtk_notebook_remove_page(GTK_NOTEBOOK(browser->notebook), page_num);
     }
@@ -617,8 +592,8 @@ void load_url(BrowserWindow *browser, const char *text)
             full_url = g_strdup(text);
         }
     } else {
-        // It's a search term
-        full_url = create_search_url(text);
+        // It's a search term - use settings to construct URL
+        full_url = g_strdup(get_search_url(text));
     }
 
     if (full_url) {

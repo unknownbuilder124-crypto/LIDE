@@ -18,5 +18,6 @@ void show_history_tab(BrowserWindow *browser);
 void update_history_tab(BrowserWindow *browser);
 void save_history(void);
 void load_history(void);
+void clear_history(GtkButton *button, BrowserWindow *browser);
 
 #endif

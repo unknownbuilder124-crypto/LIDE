@@ -9,9 +9,8 @@
 static GList *history = NULL;
 static BrowserWindow *global_browser = NULL;
 
-// Forward declarations for static functions
+// Forward declarations for static functions - removed clear_history from here
 static void on_history_item_clicked(GtkListBox *listbox, GtkListBoxRow *row, BrowserWindow *browser);
-static void clear_history(GtkButton *button, BrowserWindow *browser);
 static void on_close_tab_clicked(GtkButton *button, BrowserWindow *browser);
 
 void add_to_history(const char *url, const char *title)
@@ -72,7 +71,7 @@ static void on_history_item_clicked(GtkListBox *listbox, GtkListBoxRow *row, Bro
     }
 }
 
-static void clear_history(GtkButton *button, BrowserWindow *browser)
+void clear_history(GtkButton *button, BrowserWindow *browser)
 {
     (void)button;
     (void)browser;
