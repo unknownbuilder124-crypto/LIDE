@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -O2 -g -I.
+CFLAGS = -Wall -O2 -g -I. -Iinclude -Itools
 GTK_CFLAGS = $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS = $(shell pkg-config --libs gtk+-3.0)
 X11_LIBS = -lX11
@@ -30,8 +30,8 @@ blackline-panel: panel/panel.c tools/minimized_container.c
 blackline-launcher: launcher/launcher.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $< $(GTK_LIBS)
 
-blackline-tools: tools/tools_container.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $< $(GTK_LIBS)
+blackline-tools: tools/tools_container.c tools/viewMode.c
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c $(GTK_LIBS)
 
 blackline-background: tools/background.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -61,6 +61,10 @@ tools/system-monitor/memory.o: tools/system-monitor/memory.c tools/system-monito
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-monitor/monitor.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
+
+# View Mode
+tools/viewMode.o: tools/viewMode.c tools/viewMode.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 # VoidFox Web Browser with all features including download stats and settings
@@ -133,7 +137,8 @@ firefox-wrapper: $(FIREFOX_WRAPPER).c
 
 clean:
 	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background blackline-fm blackline-editor blackline-calculator blackline-system-monitor voidfox $(FIREFOX_WRAPPER)
-	rm -f *.o tools/system-monitor/*.o tools/web-browser/*.o
+	rm -f *.o tools/*.o tools/system-monitor/*.o tools/web-browser/*.o
+	rm -f ~/.config/blackline/tools_view_mode.conf
 
 # Install all binaries
 install: all
@@ -162,6 +167,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/blackline-system-monitor
 	sudo rm -f /usr/local/bin/voidfox
 	sudo rm -f /usr/local/bin/lide-firefox
+	rm -f ~/.config/blackline/tools_view_mode.conf
 
 # Run commands
 run-editor: blackline-editor
@@ -218,7 +224,7 @@ help:
 	@echo "  blackline-wm           - Build window manager"
 	@echo "  blackline-panel        - Build panel"
 	@echo "  blackline-launcher      - Build application launcher"
-	@echo "  blackline-tools         - Build tools container"
+	@echo "  blackline-tools         - Build tools container with view mode"
 	@echo "  blackline-background    - Build background setter"
 	@echo "  blackline-fm            - Build file manager"
 	@echo "  blackline-editor        - Build text editor"
@@ -239,5 +245,9 @@ help:
 	@echo "  run-system-monitor      - Run system monitor"
 	@echo "  run-voidfox             - Run VoidFox web browser"
 	@echo "  run-firefox             - Run Firefox wrapper"
+	@echo ""
+	@echo "View Mode:"
+	@echo "  The tools container now supports List/Grid view toggle"
+	@echo "  View preference is saved in ~/.config/blackline/tools_view_mode.conf"
 
 .PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor run-voidfox run-firefox check-webkit check-firefox help
