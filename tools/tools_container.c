@@ -22,7 +22,7 @@ static void launch_file_manager(GtkButton *button, gpointer window)
         execl("./blackline-fm", "blackline-fm", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
 }
@@ -39,7 +39,7 @@ static gboolean launch_file_manager_event(GtkWidget *widget, GdkEventButton *eve
         execl("./blackline-fm", "blackline-fm", NULL);
         exit(0);
     } else if (pid > 0) {
-        //clo
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
     return TRUE;
@@ -56,7 +56,7 @@ static void launch_text_editor(GtkButton *button, gpointer window)
         execl("./blackline-editor", "blackline-editor", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
 }
@@ -73,7 +73,7 @@ static gboolean launch_text_editor_event(GtkWidget *widget, GdkEventButton *even
         execl("./blackline-editor", "blackline-editor", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
     return TRUE;
@@ -90,7 +90,7 @@ static void launch_calculator(GtkButton *button, gpointer window)
         execl("./blackline-calculator", "blackline-calculator", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
 }
@@ -107,7 +107,7 @@ static gboolean launch_calculator_event(GtkWidget *widget, GdkEventButton *event
         execl("./blackline-calculator", "blackline-calculator", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
     return TRUE;
@@ -124,7 +124,7 @@ static void launch_system_monitor(GtkButton *button, gpointer window)
         execl("./blackline-system-monitor", "blackline-system-monitor", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
 }
@@ -141,7 +141,7 @@ static gboolean launch_system_monitor_event(GtkWidget *widget, GdkEventButton *e
         execl("./blackline-system-monitor", "blackline-system-monitor", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
     return TRUE;
@@ -159,7 +159,7 @@ static void launch_web_browser(GtkButton *button, gpointer window)
         execl("./voidfox", "voidfox", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
 }
@@ -176,7 +176,7 @@ static gboolean launch_web_browser_event(GtkWidget *widget, GdkEventButton *even
         execl("./voidfox", "voidfox", NULL);
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
     return TRUE;
@@ -214,7 +214,7 @@ static void launch_firefox_wrapper(GtkButton *button, gpointer window)
         }
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
 }
@@ -251,7 +251,7 @@ static gboolean launch_firefox_wrapper_event(GtkWidget *widget, GdkEventButton *
         }
         exit(0);
     } else if (pid > 0) {
-        //close container
+        // Parent process - close tools container
         gtk_window_close(GTK_WINDOW(window));
     }
     return TRUE;
@@ -264,14 +264,13 @@ static ToolItem tools[] = {
     {"Calculator", "🧮", launch_calculator, launch_calculator_event, NULL},
     {"System Monitor", "📊", launch_system_monitor, launch_system_monitor_event, NULL},
     {"VoidFox", "🌐", launch_web_browser, launch_web_browser_event, NULL},
-    {"Firefox (LIDE)", "🦊", launch_firefox_wrapper, launch_firefox_wrapper_event, NULL}
+    {"Firefox", "🦊", launch_firefox_wrapper, launch_firefox_wrapper_event, NULL}
 };
 static int num_tools = sizeof(tools) / sizeof(tools[0]);
 
 // Dragging functions - commented out to disable
 /*
 static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window) 
-
 {
     if (event->button == 1) 
     {
@@ -285,7 +284,6 @@ static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpoint
 }
 
 static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window) 
-
 {
     if (event->button == 1) {
         is_dragging = 0;
@@ -295,7 +293,6 @@ static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpoi
 }
 
 static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window) 
-
 {
     if (is_dragging) 
     {
@@ -325,30 +322,42 @@ static void on_view_toggle_clicked(GtkButton *button, gpointer user_data)
 
 {
     // Retrieve stored data
+    GtkWidget *scrolled_window = g_object_get_data(G_OBJECT(button), "scrolled_window");
     GtkWidget *old_container = g_object_get_data(G_OBJECT(button), "container");
-    GtkWidget *parent_box = g_object_get_data(G_OBJECT(button), "parent-box");
     GtkWidget *window = g_object_get_data(G_OBJECT(button), "window");
     
-    if (!old_container || !parent_box || !window) {
+    if (!scrolled_window || !old_container || !window) {
         g_warning("Missing data in view toggle callback");
         return;
     }
     
-    // Toggle view mode and get new container
-    GtkWidget *new_container = view_mode_toggle(old_container, tools, num_tools, parent_box, window);
+    // Get current mode and toggle
+    ViewMode current = view_mode_get_current();
+    ViewMode new_mode = (current == VIEW_MODE_LIST) ? VIEW_MODE_GRID : VIEW_MODE_LIST;
+    
+    // Remove old container from scrolled window
+    gtk_container_remove(GTK_CONTAINER(scrolled_window), old_container);
+    
+    // Create new container with new mode
+    GtkWidget *new_container = view_mode_create_container(tools, num_tools, new_mode, window);
+    
+    // Add new container to scrolled window
+    gtk_container_add(GTK_CONTAINER(scrolled_window), new_container);
     
     // Update stored container
     g_object_set_data(G_OBJECT(button), "container", new_container);
     
-    // Update button label and window size
-    ViewMode current = view_mode_get_current();
-    if (current == VIEW_MODE_LIST) {
+    // Update button label and window size - same height for both modes
+    if (new_mode == VIEW_MODE_LIST) {
         gtk_button_set_label(button, "📋 List");
-        gtk_window_set_default_size(GTK_WINDOW(window), 300, 550);
+        gtk_window_set_default_size(GTK_WINDOW(window), 300, 400);
     } else {
         gtk_button_set_label(button, "🔲 Grid");
-        gtk_window_set_default_size(GTK_WINDOW(window), 350, 450);
+        gtk_window_set_default_size(GTK_WINDOW(window), 350, 400);
     }
+    
+    // Show all widgets
+    gtk_widget_show_all(window);
 }
 
 static void activate(GtkApplication *app, gpointer user_data) 
@@ -361,32 +370,21 @@ static void activate(GtkApplication *app, gpointer user_data)
     view_mode_load();
     ViewMode saved_mode = view_mode_get_current();
     
-    // Set window size based on mode
+    // Set window size based on mode - same height for both
     if (saved_mode == VIEW_MODE_LIST) {
-        gtk_window_set_default_size(GTK_WINDOW(window), 300, 550);
+        gtk_window_set_default_size(GTK_WINDOW(window), 300, 400);
     } else {
-        gtk_window_set_default_size(GTK_WINDOW(window), 350, 450);
+        gtk_window_set_default_size(GTK_WINDOW(window), 350, 400);
     }
     
     // Set fixed position 
     // These coordinates are relative to the X display
-    gtk_window_move(GTK_WINDOW(window), 9 , 40);  // Fixed position (x=10, y=30)
+    gtk_window_move(GTK_WINDOW(window), 10, 40);  // Fixed position (x=10, y=40) - below the panel
     
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);  // Don't auto-center
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
     gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
-    gtk_window_set_decorated(GTK_WINDOW(window), FALSE);  
-    // Enable events for dragging - commented out to disable
-    /*
-    gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK | 
-                                   GDK_BUTTON_RELEASE_MASK | 
-                                   GDK_POINTER_MOTION_MASK);
-    
-    // Connect drag signals
-    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press), window);
-    g_signal_connect(window, "button-release-event", G_CALLBACK(on_button_release), window);
-    g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_notify), window);
-    */
+    gtk_window_set_decorated(GTK_WINDOW(window), FALSE); 
     
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
@@ -421,13 +419,25 @@ static void activate(GtkApplication *app, gpointer user_data)
         gtk_button_set_label(GTK_BUTTON(view_btn), "🔲 Grid");
     }
     
+    // Create a scrolled window to contain the tools container (for BOTH list and grid views)
+    GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
+                                   GTK_POLICY_NEVER,     // Horizontal scrollbar never
+                                   GTK_POLICY_AUTOMATIC); // Vertical scrollbar when needed
+    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 300);
+    
     // Create container with saved mode
     GtkWidget *tools_container = view_mode_create_container(tools, num_tools, saved_mode, window);
-    gtk_box_pack_start(GTK_BOX(vbox), tools_container, TRUE, TRUE, 0);
+    
+    // Add the tools container to the scrolled window
+    gtk_container_add(GTK_CONTAINER(scrolled_window), tools_container);
+    
+    // Pack the scrolled window into the main vbox
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 0);
     
     // Store data on view button for later use
+    g_object_set_data(G_OBJECT(view_btn), "scrolled_window", scrolled_window);
     g_object_set_data(G_OBJECT(view_btn), "container", tools_container);
-    g_object_set_data(G_OBJECT(view_btn), "parent-box", vbox);
     g_object_set_data(G_OBJECT(view_btn), "window", window);
     
     // Connect view toggle button
@@ -444,11 +454,19 @@ static void activate(GtkApplication *app, gpointer user_data)
         "button { background-color: #1e2429; color: #00ff88; border: none; }"
         "button:hover { background-color: #2a323a; }"
         "label { color: #ffffff; }"
-        "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #00ff88; }",
+        "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #00ff88; }"
+        "scrolledwindow { border: none; background-color: #0b0f14; }"
+        /* Style the scrollbar */
+        "scrollbar { background-color: #1e2429; }"
+        "scrollbar slider { background-color: #00ff88; border-radius: 4px; min-width: 8px; min-height: 8px; }"
+        "scrollbar slider:hover { background-color: #33ffaa; }"
+        "scrollbar slider:active { background-color: #00cc66; }"
+        "scrollbar trough { background-color: #2a323a; border-radius: 4px; }",
         -1, NULL);
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     
+    // CRITICAL: Show all widgets
     gtk_widget_show_all(window);
     gtk_window_present(GTK_WINDOW(window));
 }
