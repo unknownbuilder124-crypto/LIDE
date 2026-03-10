@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "tools/minimized_container.h"  
+#include "tools/minimized_container.h"  // Add this include
 
 static void launch_tools(GtkButton *button, gpointer data) 
 {
@@ -12,7 +12,7 @@ static void launch_tools(GtkButton *button, gpointer data)
     (void)data;
     pid_t pid = fork();
     if (pid == 0) {
-        execl("./LIDE/blackline-tools", "blackline-tools", NULL);
+        execl("./blackline-tools", "blackline-tools", NULL);
         exit(0);
     }
 }
