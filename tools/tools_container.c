@@ -339,6 +339,39 @@ static void on_window_destroy(GtkWidget *widget, gpointer data)
     }
 }
 
+// Realize callback - called after window is realized and has an XID
+static void on_window_realized(GtkWidget *window, gpointer data) 
+
+{
+    // Get display for atom operations
+    Display *xdisplay = GDK_DISPLAY_XDISPLAY(gtk_widget_get_display(window));
+    global_display = xdisplay;  // Store for cleanup
+    
+    // Get the X window ID
+    GdkWindow *gdk_window = gtk_widget_get_window(window);
+    if (gdk_window) {
+        Window xwindow = GDK_WINDOW_XID(gdk_window);
+        
+        // Set window type to DOCK so window manager doesn't kill it
+        Atom net_wm_window_type = XInternAtom(xdisplay, "_NET_WM_WINDOW_TYPE", False);
+        Atom net_wm_window_type_dock = XInternAtom(xdisplay, "_NET_WM_WINDOW_TYPE_DOCK", False);
+        XChangeProperty(xdisplay, xwindow, net_wm_window_type, XA_ATOM, 32,
+                       PropModeReplace, (unsigned char*)&net_wm_window_type_dock, 1);
+        
+        // Set _NET_WM_PID property for easier window detection
+        Atom net_wm_pid = XInternAtom(xdisplay, "_NET_WM_PID", False);
+        pid_t pid = getpid();
+        XChangeProperty(xdisplay, xwindow, net_wm_pid, XA_CARDINAL, 32,
+                    PropModeReplace, (unsigned char*)&pid, 1);
+        
+        // Set a unique atom on the root window to identify this instance
+        Atom tools_atom = XInternAtom(xdisplay, "_BLACKLINE_TOOLS_WINDOW", False);
+        XChangeProperty(xdisplay, DefaultRootWindow(xdisplay), tools_atom, XA_WINDOW, 32,
+                        PropModeReplace, (unsigned char*)&xwindow, 1);
+        XFlush(xdisplay);
+    }
+}
+
 // View toggle callback
 static void on_view_toggle_clicked(GtkButton *button, gpointer user_data) 
 
@@ -380,6 +413,9 @@ static void on_view_toggle_clicked(GtkButton *button, gpointer user_data)
     
     // Show all widgets
     gtk_widget_show_all(window);
+    
+    // Save the new mode to config file
+    view_mode_save();
 }
 
 static void activate(GtkApplication *app, gpointer user_data) 
@@ -388,9 +424,18 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Tools");
     
-    // Load saved view mode
+    // Load saved view mode - this loads from file
     view_mode_load();
+    
+    // Get the saved mode (now properly loaded)
     ViewMode saved_mode = view_mode_get_current();
+    
+    // Debug print to verify mode is loaded correctly
+    if (saved_mode == VIEW_MODE_LIST) {
+        g_print("Tools container starting in LIST mode\n");
+    } else {
+        g_print("Tools container starting in GRID mode\n");
+    }
     
     // Set window size based on mode - same height for both
     if (saved_mode == VIEW_MODE_LIST) {
@@ -448,7 +493,7 @@ static void activate(GtkApplication *app, gpointer user_data)
                                    GTK_POLICY_AUTOMATIC); // Vertical scrollbar when needed
     gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 300);
     
-    // Create container with saved mode
+    // Create container with saved mode - this will use the loaded mode
     GtkWidget *tools_container = view_mode_create_container(tools, num_tools, saved_mode, window);
     
     // Add the tools container to the scrolled window
@@ -467,6 +512,9 @@ static void activate(GtkApplication *app, gpointer user_data)
     
     // Connect destroy signal to clean up atom
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), NULL);
+    
+    // Connect realize signal to set atoms after window is ready
+    g_signal_connect(window, "realize", G_CALLBACK(on_window_realized), NULL);
     
     // Add some spacing at the bottom
     GtkWidget *bottom_spacer = gtk_label_new("");
@@ -491,26 +539,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     
-    // CRITICAL: Show all widgets
+    // Show all widgets
     gtk_widget_show_all(window);
-    
-    // Get display for atom operations
-    Display *xdisplay = GDK_DISPLAY_XDISPLAY(gtk_widget_get_display(window));
-    global_display = xdisplay;  // Store for cleanup
-    
-    // Set _NET_WM_PID property for easier window detection (optional, kept for compatibility)
-    Window xwindow = GDK_WINDOW_XID(gtk_widget_get_window(window));
-    Atom net_wm_pid = XInternAtom(xdisplay, "_NET_WM_PID", False);
-    pid_t pid = getpid();
-    XChangeProperty(xdisplay, xwindow, net_wm_pid, XA_CARDINAL, 32,
-                PropModeReplace, (unsigned char*)&pid, 1);
-    
-    // Set a unique atom on the root window to identify this instance
-    Atom tools_atom = XInternAtom(xdisplay, "_BLACKLINE_TOOLS_WINDOW", False);
-    XChangeProperty(xdisplay, DefaultRootWindow(xdisplay), tools_atom, XA_WINDOW, 32,
-                    PropModeReplace, (unsigned char*)&xwindow, 1);
-    XFlush(xdisplay);
-    
     gtk_window_present(GTK_WINDOW(window));
 }
 
@@ -526,18 +556,29 @@ static Window find_existing_instance(Display *dpy)
     unsigned long nitems, bytes_after;
     unsigned char *data = NULL;
     
-    if (XGetWindowProperty(dpy, root, atom, 0, 1, False, XA_WINDOW,
-                           &actual_type, &actual_format, &nitems, &bytes_after,
-                           &data) == Success && actual_type == XA_WINDOW && nitems == 1) {
+    int status = XGetWindowProperty(dpy, root, atom, 0, 1, False, XA_WINDOW,
+                                    &actual_type, &actual_format, &nitems, &bytes_after,
+                                    &data);
+    
+    if (status == Success && actual_type == XA_WINDOW && nitems == 1) {
         Window win = *(Window*)data;
         XFree(data);
         
-        // Verify the window still exists
+        // Verify the window still exists and is mapped
         XWindowAttributes attrs;
         if (XGetWindowAttributes(dpy, win, &attrs) != 0) {
-            return win;
+            if (attrs.map_state != IsUnmapped) {
+                return win;
+            }
         }
+        
+        // Window exists but is unmapped - delete the stale atom
+        XDeleteProperty(dpy, root, atom);
+        XFlush(dpy);
+    } else {
+        if (data) XFree(data);
     }
+    
     return None;
 }
 

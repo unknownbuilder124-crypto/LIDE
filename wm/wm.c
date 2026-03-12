@@ -28,13 +28,16 @@ typedef struct ClientWindow {
     int is_maximized;
     int saved_x, saved_y;
     int saved_width, saved_height;
+    int is_dock;  // Flag for dock windows (panel, tools container)
     struct ClientWindow *next;
 } ClientWindow;
 
 static ClientWindow *window_list = NULL;
 
 // Add window to list
-static void add_window(Window id) {
+static void add_window(Window id) 
+
+{
     ClientWindow *new_win = malloc(sizeof(ClientWindow));
     new_win->id = id;
     new_win->x = 0;
@@ -46,6 +49,7 @@ static void add_window(Window id) {
     new_win->saved_y = 0;
     new_win->saved_width = 0;
     new_win->saved_height = 0;
+    new_win->is_dock = 0;  // Default to normal window
     new_win->next = window_list;
     window_list = new_win;
 }
@@ -86,12 +90,35 @@ static void get_screen_size(Display *d, int screen, int *width, int *height)
     *height = DisplayHeight(d, screen);
 }
 
+// Check if window is a dock (panel, toolbar, etc.)
+static int is_dock_window(Display *d, Window win) 
+
+{
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    unsigned char *data = NULL;
+    
+    int result = XGetWindowProperty(d, win, net_wm_window_type, 0, 1, False, XA_ATOM,
+                                    &actual_type, &actual_format, &nitems, &bytes_after,
+                                    &data);
+    
+    if (result == Success && actual_type == XA_ATOM && nitems == 1) {
+        Atom window_type = *(Atom*)data;
+        XFree(data);
+        return (window_type == net_wm_window_type_dock);
+    }
+    
+    if (data) XFree(data);
+    return 0;
+}
+
 // Maximize window
 static void maximize_window(Display *d, Window win) 
 
 {
     ClientWindow *w = find_window(win);
-    if (!w) return;
+    if (!w || w->is_dock) return;  // Don't maximize dock windows
     
     // Save current geometry
     if (!w->is_maximized) {
@@ -130,7 +157,7 @@ static void unmaximize_window(Display *d, Window win)
 
 {
     ClientWindow *w = find_window(win);
-    if (!w || !w->is_maximized) return;
+    if (!w || w->is_dock || !w->is_maximized) return;
     
     // Restore saved geometry
     w->x = w->saved_x;
@@ -151,7 +178,7 @@ static void handle_maximize_request(Display *d, Window win, long action)
 
 {
     ClientWindow *w = find_window(win);
-    if (!w) return;
+    if (!w || w->is_dock) return;  // Ignore for dock windows
     
     switch(action) {
         case 0: // _NET_WM_STATE_REMOVE
@@ -235,6 +262,9 @@ int main(void)
                 XWindowAttributes attr;
                 XGetWindowAttributes(d, ev.xmaprequest.window, &attr);
                 
+                // Check if it's a dock window
+                int dock = is_dock_window(d, ev.xmaprequest.window);
+                
                 // Add to window list
                 add_window(ev.xmaprequest.window);
                 ClientWindow *w = find_window(ev.xmaprequest.window);
@@ -243,15 +273,27 @@ int main(void)
                     w->y = attr.y;
                     w->width = attr.width;
                     w->height = attr.height;
+                    w->is_dock = dock;
+                    
+                    // For dock windows, select different events
+                    if (dock) {
+                        XSelectInput(d, ev.xmaprequest.window, 
+                                    StructureNotifyMask | PropertyChangeMask);
+                    }
                 }
                 
                 // Map the window
                 XMapWindow(d, ev.xmaprequest.window);
-                XRaiseWindow(d, ev.xmaprequest.window);
                 
-                // Set active window
-                XChangeProperty(d, root, net_active_window, XA_WINDOW, 32,
-                               PropModeReplace, (unsigned char*)&ev.xmaprequest.window, 1);
+                // Only raise normal windows, not dock windows
+                if (!dock) {
+                    XRaiseWindow(d, ev.xmaprequest.window);
+                    
+                    // Set active window (only for normal windows)
+                    XChangeProperty(d, root, net_active_window, XA_WINDOW, 32,
+                                   PropModeReplace, (unsigned char*)&ev.xmaprequest.window, 1);
+                }
+                
                 break;
             }
             
