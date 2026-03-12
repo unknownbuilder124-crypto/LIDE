@@ -1,5 +1,5 @@
 [Desktop Entry]
 Name=BlackLine
 Comment=BlackLine Desktop Environment
-Exec=/home/israfil/Desktop/LIDE/blackline-session
+Exec=/usr/local/bin/blackline-session
 Type=XSession
