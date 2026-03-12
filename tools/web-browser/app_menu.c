@@ -365,7 +365,7 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
     
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), zoom_item);
     
-    // Settings item - now uses the proper settings dialog
+    // Settings item 
     GtkWidget *settings_item = gtk_menu_item_new_with_label("Settings");
     g_signal_connect(settings_item, "activate", G_CALLBACK(on_settings_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), settings_item);

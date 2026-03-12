@@ -5,6 +5,15 @@
 #include "settings.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <libgen.h> // for dirname
+#include <limits.h> // for PATH_MAX
+#include <unistd.h> // for readlink, access
+#include <stdlib.h> // for realpath
+
+// Define PATH_MAX if not defined (for systems that don't have it)
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 // Debug macro - comment out to disable debug output
 #define DEBUG 1
@@ -17,6 +26,118 @@
 // Dragging variables
 static int is_dragging = 0;
 static int drag_start_x, drag_start_y;
+
+// Helper function to get absolute path to home page
+static char* get_home_page_path(void)
+
+{
+    static char path[PATH_MAX];
+    char exe_path[PATH_MAX];
+    char *exe_dir;
+    char *resolved_path;
+    
+    // Clear the path buffer
+    memset(path, 0, sizeof(path));
+    
+    // Try to get the path to the executable
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    
+    if (len != -1) {
+        exe_path[len] = '\0';
+        
+        // Get the directory containing the executable
+        char *exe_copy = g_strdup(exe_path);
+        exe_dir = dirname(exe_copy);
+        
+        // First try: same directory as executable
+        snprintf(path, sizeof(path) - 1, "%s/homePage.html", exe_dir);
+        g_free(exe_copy);
+        
+        if (access(path, F_OK) == 0) {
+            DEBUG_PRINT("Home page found at: %s", path);
+            return path;
+        }
+        
+        // Second try: in tools/web-browser subdirectory (if executable is in parent)
+        snprintf(path, sizeof(path) - 1, "%s/tools/web-browser/homePage.html", exe_dir);
+        resolved_path = realpath(path, NULL);
+        if (resolved_path) {
+            if (access(resolved_path, F_OK) == 0) {
+                strncpy(path, resolved_path, sizeof(path) - 1);
+                free(resolved_path);
+                DEBUG_PRINT("Home page found at: %s", path);
+                return path;
+            }
+            free(resolved_path);
+        }
+    }
+    
+    // Try current directory
+    snprintf(path, sizeof(path) - 1, "./homePage.html");
+    if (access(path, F_OK) == 0) {
+        resolved_path = realpath(path, NULL);
+        if (resolved_path) {
+            strncpy(path, resolved_path, sizeof(path) - 1);
+            free(resolved_path);
+            DEBUG_PRINT("Home page found at: %s", path);
+            return path;
+        }
+        DEBUG_PRINT("Home page found at: %s", path);
+        return path;
+    }
+    
+    // Try in tools/web-browser subdirectory from current directory
+    snprintf(path, sizeof(path) - 1, "./tools/web-browser/homePage.html");
+    if (access(path, F_OK) == 0) {
+        resolved_path = realpath(path, NULL);
+        if (resolved_path) {
+            strncpy(path, resolved_path, sizeof(path) - 1);
+            free(resolved_path);
+            DEBUG_PRINT("Home page found at: %s", path);
+            return path;
+        }
+        DEBUG_PRINT("Home page found at: %s", path);
+        return path;
+    }
+    
+    // Try from the executable's parent directory (for when run from project root)
+    if (len != -1) {
+        char *exe_copy = g_strdup(exe_path);
+        exe_dir = dirname(exe_copy);
+        char *parent_dir = g_strdup(exe_dir);
+        char *parent = dirname(parent_dir);
+        
+        snprintf(path, sizeof(path) - 1, "%s/tools/web-browser/homePage.html", parent);
+        g_free(exe_copy);
+        g_free(parent_dir);
+        
+        resolved_path = realpath(path, NULL);
+        if (resolved_path) {
+            if (access(resolved_path, F_OK) == 0) {
+                strncpy(path, resolved_path, sizeof(path) - 1);
+                free(resolved_path);
+                DEBUG_PRINT("Home page found at: %s", path);
+                return path;
+            }
+            free(resolved_path);
+        }
+    }
+    
+    // Last resort: try absolute path from home directory
+    const char *home = getenv("HOME");
+    if (home) {
+        snprintf(path, sizeof(path) - 1, "%s/Desktop/LIDE/tools/web-browser/homePage.html", home);
+        if (access(path, F_OK) == 0) {
+            DEBUG_PRINT("Home page found at: %s", path);
+            return path;
+        }
+    }
+    
+    // Fallback - return the current directory path
+    snprintf(path, sizeof(path) - 1, "./tools/web-browser/homePage.html");
+    DEBUG_PRINT("Home page not found, using fallback: %s", path);
+    return path;
+}
 
 // Helper function to check if string is a URL
 static int is_valid_url(const char *str)
@@ -155,7 +276,12 @@ static void on_go_clicked(GtkButton *button, BrowserWindow *browser)
 static void on_home_clicked(GtkButton *button, BrowserWindow *browser) 
 
 {
-    load_url(browser, settings.home_page);
+    // Load the custom home page
+    char *home_path = get_home_page_path();
+    char *home_uri = g_strconcat("file://", home_path, NULL);
+    DEBUG_PRINT("Loading home page: %s", home_uri);
+    load_url(browser, home_uri);
+    g_free(home_uri);
 }
 
 static void on_search_clicked(GtkButton *button, BrowserWindow *browser) 
@@ -170,7 +296,12 @@ static void on_search_clicked(GtkButton *button, BrowserWindow *browser)
 static void on_new_tab_clicked(GtkButton *button, BrowserWindow *browser) 
 
 {
-    new_tab(browser, settings.home_page);
+    // Load custom home page in new tab
+    char *home_path = get_home_page_path();
+    char *home_uri = g_strconcat("file://", home_path, NULL);
+    DEBUG_PRINT("Opening new tab with home page: %s", home_uri);
+    new_tab(browser, home_uri);
+    g_free(home_uri);
 }
 
 static void on_tab_switched(GtkNotebook *notebook, GtkWidget *page, guint page_num, BrowserWindow *browser) 
@@ -463,8 +594,14 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     }
     
     DEBUG_PRINT("Creating first tab...");
-    // Create first tab
-    new_tab(browser, settings.home_page);
+    
+    // Create first tab with custom home page
+    char *home_path = get_home_page_path();
+    char *home_uri = g_strconcat("file://", home_path, NULL);
+    DEBUG_PRINT("First tab URL: %s", home_uri);
+    new_tab(browser, home_uri);
+    g_free(home_uri);
+    
     DEBUG_PRINT("First tab created");
 
     gtk_widget_show_all(browser->window);
@@ -498,10 +635,15 @@ void new_tab(BrowserWindow *browser, const char *url)
     
     g_signal_connect(web_view, "load-changed", G_CALLBACK(on_load_changed), browser);
 
-    // Load URL
-    const char *load_url = url ? url : settings.home_page;
-    DEBUG_PRINT("Loading URL: %s", load_url);
-    webkit_web_view_load_uri(web_view, load_url);
+    // Load URL - use provided URL or custom home page
+    if (url && *url) {
+        webkit_web_view_load_uri(web_view, url);
+    } else {
+        char *home_path = get_home_page_path();
+        char *home_uri = g_strconcat("file://", home_path, NULL);
+        webkit_web_view_load_uri(web_view, home_uri);
+        g_free(home_uri);
+    }
 
     // Create tab content container
     GtkWidget *tab_child = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -563,7 +705,10 @@ void close_tab(BrowserWindow *browser, GtkWidget *tab_child)
     if (page_num != -1) {
         // Don't close if it's the last tab 
         if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(browser->notebook)) <= 1) {
-            new_tab(browser, settings.home_page);
+            char *home_path = get_home_page_path();
+            char *home_uri = g_strconcat("file://", home_path, NULL);
+            new_tab(browser, home_uri);
+            g_free(home_uri);
         }
         gtk_notebook_remove_page(GTK_NOTEBOOK(browser->notebook), page_num);
     }
@@ -597,6 +742,7 @@ void load_url(BrowserWindow *browser, const char *text)
     }
 
     if (full_url) {
+        DEBUG_PRINT("Loading URL: %s", full_url);
         webkit_web_view_load_uri(tab->web_view, full_url);
         g_free(full_url);
     }
