@@ -1,12 +1,10 @@
+// voidfox.h
 #ifndef VOIDFOX_H
 #define VOIDFOX_H
 
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
-#include <stdlib.h>
-#include <stdio.h>
 
-// Main application data
 typedef struct {
     GtkWidget *window;
     GtkWidget *notebook;
@@ -17,31 +15,27 @@ typedef struct {
     GtkWidget *stop_button;
     GtkWidget *app_menu_button;
     GtkWidget *bookmarks_button;
+    GtkWidget *home_button;           // Add this
+    GtkWidget *title_bar;              // Add this
+    GtkWidget *bookmarks_bar;          // Add this
 } BrowserWindow;
 
-// Tab data
 typedef struct {
     WebKitWebView *web_view;
     GtkWidget *tab_label;
     GtkWidget *close_button;
 } BrowserTab;
 
-// Function prototypes
+// Function declarations
 void voidfox_activate(GtkApplication *app, gpointer user_data);
 void new_tab(BrowserWindow *browser, const char *url);
 void close_tab(BrowserWindow *browser, GtkWidget *tab_child);
-void load_url(BrowserWindow *browser, const char *url);
+void load_url(BrowserWindow *browser, const char *text);
 void go_back(BrowserWindow *browser);
 void go_forward(BrowserWindow *browser);
 void reload_page(BrowserWindow *browser);
 void stop_loading(BrowserWindow *browser);
 void update_navigation_buttons(BrowserWindow *browser);
-
-// External function declarations for tab features
-void show_bookmarks_tab(BrowserWindow *browser);
-void show_history_tab(BrowserWindow *browser);
-void show_downloads_tab(BrowserWindow *browser);
-void show_passwords_tab(BrowserWindow *browser);
-void show_extensions_tab(BrowserWindow *browser);
+void settings_updated(BrowserWindow *browser);  // Add this
 
 #endif

@@ -378,6 +378,156 @@ static gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
     return TRUE;
 }
 
+// ==================== SETTINGS INTEGRATION ====================
+
+// Permission request handler
+static gboolean on_permission_request(WebKitWebView *web_view, WebKitPermissionRequest *request, BrowserWindow *browser) {
+    (void)web_view;
+    (void)browser;
+    
+    // Handle different permission types
+    if (WEBKIT_IS_GEOLOCATION_PERMISSION_REQUEST(request)) {
+        if (settings.location_enabled) {
+            webkit_permission_request_allow(request);
+        } else {
+            webkit_permission_request_deny(request);
+        }
+    } 
+    else if (WEBKIT_IS_NOTIFICATION_PERMISSION_REQUEST(request)) {
+        if (settings.notifications_enabled) {
+            webkit_permission_request_allow(request);
+        } else {
+            webkit_permission_request_deny(request);
+        }
+    }
+    else {
+        // For all other permission types (camera, microphone, etc.)
+        // Check if either camera or microphone is enabled
+        if (settings.camera_enabled || settings.microphone_enabled) {
+            webkit_permission_request_allow(request);
+        } else {
+            webkit_permission_request_deny(request);
+        }
+    }
+    
+    return TRUE;
+}
+
+// Download request handler
+static gboolean on_decide_policy(WebKitWebView *web_view, WebKitPolicyDecision *decision, WebKitPolicyDecisionType type, BrowserWindow *browser) {
+    (void)browser;
+    
+    if (type == WEBKIT_POLICY_DECISION_TYPE_RESPONSE) {
+        WebKitResponsePolicyDecision *response = WEBKIT_RESPONSE_POLICY_DECISION(decision);
+        WebKitURIRequest *request = webkit_response_policy_decision_get_request(response);
+        const gchar *uri = webkit_uri_request_get_uri(request);
+        
+        // Check if this is a download (based on MIME type or content disposition)
+        if (webkit_response_policy_decision_is_mime_type_supported(response)) {
+            return FALSE; // Let WebKit handle it normally
+        }
+        
+        // It's a download
+        WebKitDownload *download = webkit_web_view_download_uri(web_view, uri);
+        if (download) {
+            // Set download destination
+            char *download_dir = g_strdup(settings.download_dir);
+            // Expand ~ if present
+            if (download_dir[0] == '~') {
+                const char *home = g_get_home_dir();
+                char *expanded = g_build_filename(home, download_dir + 1, NULL);
+                g_free(download_dir);
+                download_dir = expanded;
+            }
+            
+            // Create destination URI
+            char *filename = g_path_get_basename(uri);
+            char *dest_path = g_build_filename(download_dir, filename, NULL);
+            char *dest_uri = g_filename_to_uri(dest_path, NULL, NULL);
+            
+            webkit_download_set_destination(download, dest_uri);
+            
+            g_free(filename);
+            g_free(dest_path);
+            g_free(dest_uri);
+            g_free(download_dir);
+            
+            if (settings.ask_download_location) {
+                // TODO: Show file chooser dialog to ask user
+                // For now, just use the default location
+            }
+        }
+        webkit_policy_decision_ignore(decision);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// Reapply WebKitSettings to all existing tabs
+static void reapply_settings_to_all_tabs(BrowserWindow *browser) {
+    if (!browser || !browser->notebook) return;
+    
+    int n_pages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(browser->notebook));
+    for (int i = 0; i < n_pages; i++) {
+        GtkWidget *tab_child = gtk_notebook_get_nth_page(GTK_NOTEBOOK(browser->notebook), i);
+        if (!tab_child) continue;
+        
+        BrowserTab *tab = g_object_get_data(G_OBJECT(tab_child), "browser-tab");
+        if (tab && tab->web_view) {
+            apply_settings_to_web_view(tab->web_view);
+        }
+    }
+}
+
+// Public function to be called after settings are saved
+void settings_updated(BrowserWindow *browser) {
+    if (!browser) return;
+    
+    // Reapply settings to all tabs
+    reapply_settings_to_all_tabs(browser);
+    
+    // Update UI elements based on new settings
+    if (browser->bookmarks_bar) {
+        gtk_widget_set_visible(browser->bookmarks_bar, settings.show_bookmarks_bar);
+    }
+    if (browser->home_button) {
+        gtk_widget_set_visible(browser->home_button, settings.show_home_button);
+    }
+    
+    // Update title bar based on use_system_title_bar
+    if (browser->title_bar) {
+        gtk_widget_set_visible(browser->title_bar, !settings.use_system_title_bar);
+        gtk_window_set_decorated(GTK_WINDOW(browser->window), settings.use_system_title_bar);
+    }
+    
+    // Update CSS for dark mode
+    GtkCssProvider *provider = gtk_css_provider_new();
+    if (settings.dark_mode) {
+        gtk_css_provider_load_from_data(provider,
+            "window { background-color: #0b0f14; color: #ffffff; }\n"
+            "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #00ff88; }\n"
+            "button { background-color: #1e2429; color: #00ff88; border: none; }\n"
+            "button:hover { background-color: #2a323a; }\n"
+            "notebook { background-color: #0b0f14; }\n"
+            "#title-bar { background-color: #0b0f14; border-bottom: 2px solid #00ff88; }\n",
+            -1, NULL);
+    } else {
+        gtk_css_provider_load_from_data(provider,
+            "window { background-color: #f0f0f0; color: #000000; }\n"
+            "entry { background-color: #ffffff; color: #000000; border: 1px solid #888888; }\n"
+            "button { background-color: #e0e0e0; color: #000000; border: none; }\n"
+            "button:hover { background-color: #d0d0d0; }\n"
+            "notebook { background-color: #f0f0f0; }\n"
+            "#title-bar { background-color: #e0e0e0; border-bottom: 2px solid #888888; }\n",
+            -1, NULL);
+    }
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
+        GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
+}
+
+// ==============================================================
+
 // Browser window creation
 void voidfox_activate(GtkApplication *app, gpointer user_data) {
 
@@ -390,6 +540,9 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     }
     DEBUG_PRINT("Browser window struct allocated");
 
+    // Load settings first
+    load_settings();
+
     browser->window = gtk_application_window_new(app);
     if (!browser->window) {
         DEBUG_PRINT("Failed to create window");
@@ -401,56 +554,63 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_title(GTK_WINDOW(browser->window), "VoidFox");
     gtk_window_set_default_size(GTK_WINDOW(browser->window), 1024, 768);
     gtk_window_set_position(GTK_WINDOW(browser->window), GTK_WIN_POS_CENTER);
-    gtk_window_set_decorated(GTK_WINDOW(browser->window), FALSE); // Remove default title bar
+    gtk_window_set_decorated(GTK_WINDOW(browser->window), settings.use_system_title_bar ? TRUE : FALSE);
 
-    // Enable events for dragging on the whole window
-    gtk_widget_add_events(browser->window, GDK_BUTTON_PRESS_MASK |
-                                           GDK_BUTTON_RELEASE_MASK |
-                                           GDK_POINTER_MOTION_MASK);
-    g_signal_connect(browser->window, "button-press-event", G_CALLBACK(on_button_press), browser->window);
-    g_signal_connect(browser->window, "button-release-event", G_CALLBACK(on_button_release), browser->window);
-    g_signal_connect(browser->window, "motion-notify-event", G_CALLBACK(on_motion_notify), browser->window);
+    // Enable events for dragging on the whole window (only if using custom title bar)
+    if (!settings.use_system_title_bar) {
+        gtk_widget_add_events(browser->window, GDK_BUTTON_PRESS_MASK |
+                                               GDK_BUTTON_RELEASE_MASK |
+                                               GDK_POINTER_MOTION_MASK);
+        g_signal_connect(browser->window, "button-press-event", G_CALLBACK(on_button_press), browser->window);
+        g_signal_connect(browser->window, "button-release-event", G_CALLBACK(on_button_release), browser->window);
+        g_signal_connect(browser->window, "motion-notify-event", G_CALLBACK(on_motion_notify), browser->window);
+    }
 
     // Main vertical box
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(browser->window), vbox);
     DEBUG_PRINT("VBox created");
 
-    // Custom title bar
-    GtkWidget *title_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_set_name(title_bar, "title-bar");
-    gtk_widget_set_size_request(title_bar, -1, 30);
-    gtk_box_pack_start(GTK_BOX(vbox), title_bar, FALSE, FALSE, 0);
+    // Custom title bar (only if not using system title bar)
+    if (!settings.use_system_title_bar) {
+        GtkWidget *title_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        gtk_widget_set_name(title_bar, "title-bar");
+        gtk_widget_set_size_request(title_bar, -1, 30);
+        gtk_box_pack_start(GTK_BOX(vbox), title_bar, FALSE, FALSE, 0);
+        browser->title_bar = title_bar;
 
-    GtkWidget *title_label = gtk_label_new("VoidFox Web Browser");
-    gtk_label_set_xalign(GTK_LABEL(title_label), 0.0);
-    gtk_box_pack_start(GTK_BOX(title_bar), title_label, TRUE, TRUE, 10);
+        GtkWidget *title_label = gtk_label_new("VoidFox Web Browser");
+        gtk_label_set_xalign(GTK_LABEL(title_label), 0.0);
+        gtk_box_pack_start(GTK_BOX(title_bar), title_label, TRUE, TRUE, 10);
 
-    GtkWidget *window_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_box_pack_end(GTK_BOX(title_bar), window_buttons, FALSE, FALSE, 5);
+        GtkWidget *window_buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+        gtk_box_pack_end(GTK_BOX(title_bar), window_buttons, FALSE, FALSE, 5);
 
-    // Minimize button
-    GtkWidget *min_btn = gtk_button_new_with_label("─");
-    gtk_widget_set_size_request(min_btn, 30, 25);
-    g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), browser->window);
-    gtk_box_pack_start(GTK_BOX(window_buttons), min_btn, FALSE, FALSE, 0);
+        // Minimize button
+        GtkWidget *min_btn = gtk_button_new_with_label("─");
+        gtk_widget_set_size_request(min_btn, 30, 25);
+        g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), browser->window);
+        gtk_box_pack_start(GTK_BOX(window_buttons), min_btn, FALSE, FALSE, 0);
 
-    // Maximize button
-    GtkWidget *max_btn = gtk_button_new_with_label("□");
-    gtk_widget_set_size_request(max_btn, 30, 25);
-    g_signal_connect(max_btn, "clicked", G_CALLBACK(on_maximize_clicked), browser->window);
-    g_signal_connect(browser->window, "window-state-event", G_CALLBACK(on_window_state_changed), max_btn);
-    gtk_box_pack_start(GTK_BOX(window_buttons), max_btn, FALSE, FALSE, 0);
+        // Maximize button
+        GtkWidget *max_btn = gtk_button_new_with_label("□");
+        gtk_widget_set_size_request(max_btn, 30, 25);
+        g_signal_connect(max_btn, "clicked", G_CALLBACK(on_maximize_clicked), browser->window);
+        g_signal_connect(browser->window, "window-state-event", G_CALLBACK(on_window_state_changed), max_btn);
+        gtk_box_pack_start(GTK_BOX(window_buttons), max_btn, FALSE, FALSE, 0);
 
-    // Close button
-    GtkWidget *close_btn = gtk_button_new_with_label("✕");
-    gtk_widget_set_size_request(close_btn, 30, 25);
-    g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), browser->window);
-    gtk_box_pack_start(GTK_BOX(window_buttons), close_btn, FALSE, FALSE, 0);
+        // Close button
+        GtkWidget *close_btn = gtk_button_new_with_label("✕");
+        gtk_widget_set_size_request(close_btn, 30, 25);
+        g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), browser->window);
+        gtk_box_pack_start(GTK_BOX(window_buttons), close_btn, FALSE, FALSE, 0);
 
-    // Separator
-    GtkWidget *sep1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(vbox), sep1, FALSE, FALSE, 0);
+        // Separator
+        GtkWidget *sep1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+        gtk_box_pack_start(GTK_BOX(vbox), sep1, FALSE, FALSE, 0);
+    } else {
+        browser->title_bar = NULL;
+    }
 
     // Toolbar
     GtkWidget *toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
@@ -523,11 +683,13 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
         gtk_box_pack_start(GTK_BOX(toolbar), go_button, FALSE, FALSE, 0);
     }
     
-    // Home button
+    // Home button (visibility controlled by settings)
     GtkWidget *home_button = gtk_button_new_from_icon_name("go-home", GTK_ICON_SIZE_MENU);
     if (home_button) {
         g_signal_connect(home_button, "clicked", G_CALLBACK(on_home_clicked), browser);
         gtk_box_pack_start(GTK_BOX(toolbar), home_button, FALSE, FALSE, 0);
+        gtk_widget_set_visible(home_button, settings.show_home_button);
+        browser->home_button = home_button;
     }
     
     // Search button
@@ -548,8 +710,22 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *sep2 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), sep2, FALSE, FALSE, 0);
 
-    // Load settings
-    load_settings();
+    // Bookmarks bar (optional)
+    if (settings.show_bookmarks_bar) {
+        GtkWidget *bookmarks_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+        gtk_widget_set_name(bookmarks_bar, "bookmarks-bar");
+        gtk_box_pack_start(GTK_BOX(vbox), bookmarks_bar, FALSE, FALSE, 0);
+        browser->bookmarks_bar = bookmarks_bar;
+        
+        // Add some placeholder bookmarks (you can populate from actual bookmarks)
+        GtkWidget *bookmark_btn = gtk_button_new_with_label("Example");
+        gtk_box_pack_start(GTK_BOX(bookmarks_bar), bookmark_btn, FALSE, FALSE, 0);
+        
+        GtkWidget *bookmark_btn2 = gtk_button_new_with_label("Google");
+        gtk_box_pack_start(GTK_BOX(bookmarks_bar), bookmark_btn2, FALSE, FALSE, 0);
+    } else {
+        browser->bookmarks_bar = NULL;
+    }
 
     // Notebook for tabs
     browser->notebook = gtk_notebook_new();
@@ -564,7 +740,7 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
 
     g_signal_connect(browser->notebook, "switch-page", G_CALLBACK(on_tab_switched), browser);
 
-    // Apply dark theme with title bar styling (based on settings)
+    // Apply initial CSS based on dark mode setting
     GtkCssProvider *provider = gtk_css_provider_new();
     if (settings.dark_mode) {
         gtk_css_provider_load_from_data(provider,
@@ -573,7 +749,8 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
             "button { background-color: #1e2429; color: #00ff88; border: none; }\n"
             "button:hover { background-color: #2a323a; }\n"
             "notebook { background-color: #0b0f14; }\n"
-            "#title-bar { background-color: #0b0f14; border-bottom: 2px solid #00ff88; }\n",
+            "#title-bar { background-color: #0b0f14; border-bottom: 2px solid #00ff88; }\n"
+            "#bookmarks-bar { background-color: #1e2429; padding: 2px; }\n",
             -1, NULL);
     } else {
         gtk_css_provider_load_from_data(provider,
@@ -582,11 +759,13 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
             "button { background-color: #e0e0e0; color: #000000; border: none; }\n"
             "button:hover { background-color: #d0d0d0; }\n"
             "notebook { background-color: #f0f0f0; }\n"
-            "#title-bar { background-color: #e0e0e0; border-bottom: 2px solid #888888; }\n",
+            "#title-bar { background-color: #e0e0e0; border-bottom: 2px solid #888888; }\n"
+            "#bookmarks-bar { background-color: #d0d0d0; padding: 2px; }\n",
             -1, NULL);
     }
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
 
     // Load history at startup if enabled
     if (settings.remember_history) {
@@ -595,14 +774,49 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     
     DEBUG_PRINT("Creating first tab...");
     
-    // Create first tab with custom home page
+    // Determine initial URL based on startup behavior
+    char *initial_url = NULL;
     char *home_path = get_home_page_path();
     char *home_uri = g_strconcat("file://", home_path, NULL);
-    DEBUG_PRINT("First tab URL: %s", home_uri);
-    new_tab(browser, home_uri);
+    
+    switch (settings.startup_behavior) {
+        case STARTUP_NEW_TAB_PAGE:
+            // Use about:blank or a new tab page
+            initial_url = g_strdup("about:blank");
+            break;
+        case STARTUP_CONTINUE:
+            // TODO: Restore previous session
+            // For now, fall back to home page
+            initial_url = g_strdup(home_uri);
+            break;
+        case STARTUP_HOME_PAGE:
+            initial_url = g_strdup(home_uri);
+            break;
+        case STARTUP_SPECIFIC_PAGES:
+            if (settings.startup_pages) {
+                initial_url = g_strdup((char*)settings.startup_pages->data);
+            } else {
+                initial_url = g_strdup(home_uri);
+            }
+            break;
+        default:
+            initial_url = g_strdup(home_uri);
+            break;
+    }
+    
+    DEBUG_PRINT("First tab URL: %s", initial_url);
+    new_tab(browser, initial_url);
+    g_free(initial_url);
     g_free(home_uri);
     
     DEBUG_PRINT("First tab created");
+
+    // Connect permission request handler
+    WebKitWebContext *context = webkit_web_context_get_default();
+    g_signal_connect(context, "permission-request", G_CALLBACK(on_permission_request), browser);
+    
+    // Connect download policy decision handler
+    g_signal_connect(context, "decide-policy", G_CALLBACK(on_decide_policy), browser);
 
     gtk_widget_show_all(browser->window);
     DEBUG_PRINT("Window shown");
