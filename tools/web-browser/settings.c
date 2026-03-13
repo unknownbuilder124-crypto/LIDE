@@ -89,7 +89,6 @@ static void init_default_settings(void)
 }
 
 // Free any allocated strings inside settings (called before overwriting)
-// This is used in load_settings when overriding values
 static void free_settings_strings(void)
 {
     g_free(settings.home_page);
@@ -370,18 +369,6 @@ void apply_settings_to_web_view(WebKitWebView *web_view)
     if (settings.user_agent && *settings.user_agent) {
         webkit_settings_set_user_agent(wk_settings, settings.user_agent);
     }
-
-    // Do Not Track - check if the function is available at compile time
-    // We'll use a simple approach - if the function exists, use it
-    #ifdef WEBKIT_HAS_DO_NOT_TRACK
-        webkit_settings_set_enable_do_not_track(wk_settings, settings.do_not_track);
-    #else
-        // For older versions, we can't set Do Not Track
-        // Just note it if debugging is needed
-        if (settings.do_not_track) {
-            // Uncomment for debugging: printf("Note: Do Not Track not supported on this WebKitGTK version\n");
-        }
-    #endif
 }
 
 // Construct search URL based on settings and query
@@ -590,7 +577,10 @@ static void on_settings_response(GtkDialog *dialog, gint response_id, SettingsDi
 
         save_settings();
 
-        // Optionally apply to current tabs? For simplicity we just save.
+        // Apply changes to the current browser window
+        if (data->browser) {
+            settings_updated(data->browser);
+        }
     }
 
     gtk_widget_destroy(GTK_WIDGET(dialog));
@@ -598,6 +588,7 @@ static void on_settings_response(GtkDialog *dialog, gint response_id, SettingsDi
 }
 
 void show_settings_dialog(BrowserWindow *browser)
+
 {
     SettingsDialogData *data = g_new0(SettingsDialogData, 1);
     data->browser = browser;
@@ -882,8 +873,9 @@ void show_settings_dialog(BrowserWindow *browser)
     g_signal_connect(data->clear_history_btn, "clicked", G_CALLBACK(clear_history), browser);
     gtk_box_pack_start(GTK_BOX(history_tab), data->clear_history_btn, FALSE, FALSE, 0);
 
-    // Show everything and run
+    // Show everything and ensure the dialog gets focus
     gtk_widget_show_all(dialog);
+    gtk_window_present(GTK_WINDOW(dialog)); // Ensure the dialog gets focus
 
     g_signal_connect(dialog, "response", G_CALLBACK(on_settings_response), data);
 }
