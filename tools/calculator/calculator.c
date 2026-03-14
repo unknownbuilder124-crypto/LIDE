@@ -1,4 +1,5 @@
 #include "calculator.h"
+#include "window_resize.h"
 
 #include "calculator.h"
 #include <math.h>
@@ -6,23 +7,30 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-//#ifndef M_E
-#ifndef M_PI = 3.14159265358979323846
-#define M_E 2.71828182845904523536
-#endif
-
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
+
 // Dragging handlers
-gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data) 
+gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
     Calculator *calc = (Calculator *)data;
-    
+
     if (event->button == 1) {
-        calc->is_dragging = 1;
+        // Check if cursor is on an edge (for resizing)
+        calc->resize_edge = detect_resize_edge_absolute(GTK_WINDOW(calc->window), event->x_root, event->y_root);
+
+        if (calc->resize_edge != RESIZE_NONE) {
+            calc->is_resizing = 1;
+        } else {
+            calc->is_dragging = 1;
+        }
+
         calc->drag_start_x = event->x_root;
         calc->drag_start_y = event->y_root;
         gtk_window_present(GTK_WINDOW(calc->window));
@@ -31,31 +39,52 @@ gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data
     return FALSE;
 }
 
-gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data) 
+gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
     Calculator *calc = (Calculator *)data;
-    
+
     if (event->button == 1) {
         calc->is_dragging = 0;
+        calc->is_resizing = 0;
+        calc->resize_edge = RESIZE_NONE;
         return TRUE;
     }
     return FALSE;
 }
 
-gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data) 
+gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 {
     Calculator *calc = (Calculator *)data;
-    
-    if (calc->is_dragging) {
+
+    // Update cursor for resize hints
+    if (!calc->is_dragging && !calc->is_resizing) {
+        int resize_edge = detect_resize_edge_absolute(GTK_WINDOW(calc->window), event->x_root, event->y_root);
+        update_resize_cursor(widget, resize_edge);
+    }
+
+    if (calc->is_resizing) {
+        int delta_x = event->x_root - calc->drag_start_x;
+        int delta_y = event->y_root - calc->drag_start_y;
+
+        int window_width, window_height;
+        gtk_window_get_size(GTK_WINDOW(calc->window), &window_width, &window_height);
+
+        apply_window_resize(GTK_WINDOW(calc->window), calc->resize_edge,
+                           delta_x, delta_y, window_width, window_height);
+
+        calc->drag_start_x = event->x_root;
+        calc->drag_start_y = event->y_root;
+        return TRUE;
+    } else if (calc->is_dragging) {
         int dx = event->x_root - calc->drag_start_x;
         int dy = event->y_root - calc->drag_start_y;
-        
+
         int x, y;
         gtk_window_get_position(GTK_WINDOW(calc->window), &x, &y);
         gtk_window_move(GTK_WINDOW(calc->window), x + dx, y + dy);
-        
+
         calc->drag_start_x = event->x_root;
         calc->drag_start_y = event->y_root;
         return TRUE;
@@ -390,7 +419,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_window_set_title(GTK_WINDOW(calc->window), "BlackLine Calculator");
     gtk_window_set_default_size(GTK_WINDOW(calc->window), 300, 450);
     gtk_window_set_position(GTK_WINDOW(calc->window), GTK_WIN_POS_CENTER);
-    gtk_window_set_resizable(GTK_WINDOW(calc->window), FALSE);
+    gtk_window_set_decorated(GTK_WINDOW(calc->window), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(calc->window), TRUE);
     
     // Enable events for dragging
     gtk_widget_add_events(calc->window, GDK_BUTTON_PRESS_MASK | 

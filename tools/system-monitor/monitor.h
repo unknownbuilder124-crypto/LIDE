@@ -41,6 +41,20 @@ typedef struct {
     guint64 vm_rss; // in pages
 } ProcessEntry;
 
+// Monitor application data
+typedef struct {
+    GtkWidget *window;
+    GtkWidget *cpu_da;
+    GtkWidget *mem_da;
+
+    // For dragging and resizing
+    int is_dragging;
+    int is_resizing;
+    int resize_edge;
+    int drag_start_x;
+    int drag_start_y;
+} Monitor;
+
 // Global data for graphs (declare as extern so other files can access)
 extern double cpu_history[HISTORY_SIZE];
 extern int cpu_history_index;

@@ -1,4 +1,5 @@
 #include "monitor.h"
+#include "window_resize.h"
 
 // Data history for graphs 
 double cpu_history[HISTORY_SIZE] = {0};
@@ -9,55 +10,79 @@ int mem_history_index = 0;
 static CpuData cpu_data = {0};
 static MemData mem_data = {0};
 
-// Dragging variables
-static int is_dragging = 0;
-static int drag_start_x, drag_start_y;
-
-typedef struct {
-    GtkWidget *cpu_da;
-    GtkWidget *mem_da;
-} DrawAreas;
-
 // Dragging handlers
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window)
+static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
+    Monitor *mon = (Monitor *)data;
+
     if (event->button == 1)
     {
-        is_dragging = 1;
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
-        gtk_window_present(GTK_WINDOW(window));
+        // Check if cursor is on an edge (for resizing)
+        mon->resize_edge = detect_resize_edge_absolute(GTK_WINDOW(mon->window), event->x_root, event->y_root);
+
+        if (mon->resize_edge != RESIZE_NONE) {
+            mon->is_resizing = 1;
+        } else {
+            mon->is_dragging = 1;
+        }
+
+        mon->drag_start_x = event->x_root;
+        mon->drag_start_y = event->y_root;
+        gtk_window_present(GTK_WINDOW(mon->window));
         return TRUE;
     }
     return FALSE;
 }
 
-static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window)
+static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
-    (void)widget;
-    (void)event;
-    (void)window;
-    is_dragging = 0;
+    Monitor *mon = (Monitor *)data;
+
+    if (event->button == 1) {
+        mon->is_dragging = 0;
+        mon->is_resizing = 0;
+        mon->resize_edge = RESIZE_NONE;
+        return TRUE;
+    }
     return FALSE;
 }
 
-static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window)
+static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 {
-    GtkWidget *win = GTK_WIDGET(window);
+    Monitor *mon = (Monitor *)data;
 
-    if (is_dragging) {
-        int dx = event->x_root - drag_start_x;
-        int dy = event->y_root - drag_start_y;
+    // Update cursor for resize hints
+    if (!mon->is_dragging && !mon->is_resizing) {
+        int resize_edge = detect_resize_edge_absolute(GTK_WINDOW(mon->window), event->x_root, event->y_root);
+        update_resize_cursor(widget, resize_edge);
+    }
+
+    if (mon->is_resizing) {
+        int delta_x = event->x_root - mon->drag_start_x;
+        int delta_y = event->y_root - mon->drag_start_y;
+
+        int window_width, window_height;
+        gtk_window_get_size(GTK_WINDOW(mon->window), &window_width, &window_height);
+
+        apply_window_resize(GTK_WINDOW(mon->window), mon->resize_edge,
+                           delta_x, delta_y, window_width, window_height);
+
+        mon->drag_start_x = event->x_root;
+        mon->drag_start_y = event->y_root;
+        return TRUE;
+    } else if (mon->is_dragging) {
+        int dx = event->x_root - mon->drag_start_x;
+        int dy = event->y_root - mon->drag_start_y;
 
         int x, y;
-        gtk_window_get_position(GTK_WINDOW(win), &x, &y);
-        gtk_window_move(GTK_WINDOW(win), x + dx, y + dy);
+        gtk_window_get_position(GTK_WINDOW(mon->window), &x, &y);
+        gtk_window_move(GTK_WINDOW(mon->window), x + dx, y + dy);
 
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
+        mon->drag_start_x = event->x_root;
+        mon->drag_start_y = event->y_root;
         return TRUE;
     }
     return FALSE;
@@ -106,7 +131,7 @@ static void on_close_clicked(GtkButton *button, gpointer window)
 
 // Update all data
 static gboolean update_data(gpointer user_data) {
-    DrawAreas *areas = user_data;
+    Monitor *mon = user_data;
 
     // CPU
     update_cpu_usage(&cpu_data);
@@ -119,8 +144,8 @@ static gboolean update_data(gpointer user_data) {
     mem_history_index = (mem_history_index + 1) % HISTORY_SIZE;
 
     // Redraw graphs
-    gtk_widget_queue_draw(areas->cpu_da);
-    gtk_widget_queue_draw(areas->mem_da);
+    gtk_widget_queue_draw(mon->cpu_da);
+    gtk_widget_queue_draw(mon->mem_da);
 
     return G_SOURCE_CONTINUE;
 }
@@ -148,18 +173,24 @@ static gboolean update_process_list(gpointer user_data) {
 }
 
 static void activate(GtkApplication *app, gpointer user_data) {
+    Monitor *mon = g_new(Monitor, 1);
+    mon->is_dragging = 0;
+    mon->is_resizing = 0;
+    mon->resize_edge = RESIZE_NONE;
+
     GtkWidget *window = gtk_application_window_new(app);
+    mon->window = window;
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine System Monitor");
     gtk_window_set_default_size(GTK_WINDOW(window), 800, 500);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-    
+
     // Enable events for dragging
     gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK |
                                    GDK_BUTTON_RELEASE_MASK |
                                    GDK_POINTER_MOTION_MASK);
-    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press), window);
-    g_signal_connect(window, "button-release-event", G_CALLBACK(on_button_release), window);
-    g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_notify), window);
+    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press), mon);
+    g_signal_connect(window, "button-release-event", G_CALLBACK(on_button_release), mon);
+    g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_notify), mon);
 
     // Main vertical box
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -214,6 +245,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     // CPU graph
     GtkWidget *cpu_frame = gtk_frame_new("CPU Usage");
     GtkWidget *cpu_da = gtk_drawing_area_new();
+    mon->cpu_da = cpu_da;
     gtk_widget_set_size_request(cpu_da, -1, 150);
     g_signal_connect(cpu_da, "draw", G_CALLBACK(draw_cpu_graph), NULL);
     gtk_container_add(GTK_CONTAINER(cpu_frame), cpu_da);
@@ -222,6 +254,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     // Memory bar
     GtkWidget *mem_frame = gtk_frame_new("Memory Usage");
     GtkWidget *mem_da = gtk_drawing_area_new();
+    mon->mem_da = mem_da;
     gtk_widget_set_size_request(mem_da, -1, 50);
     g_signal_connect(mem_da, "draw", G_CALLBACK(draw_mem_bar), NULL);
     gtk_container_add(GTK_CONTAINER(mem_frame), mem_da);
@@ -294,14 +327,14 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
+    gtk_window_set_decorated(GTK_WINDOW(window), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(window), TRUE);
     gtk_widget_show_all(window);
 
     // Start update timers
-    DrawAreas *areas = g_new(DrawAreas, 1);
-    areas->cpu_da = cpu_da;
-    areas->mem_da = mem_da;
-    g_timeout_add_seconds(2, update_data, areas);
+    g_timeout_add_seconds(2, update_data, mon);
     g_timeout_add_seconds(3, update_process_list, store);
+    g_object_set_data_full(G_OBJECT(window), "monitor", mon, g_free);
 }
 
 int main(int argc, char **argv) 

@@ -3,6 +3,7 @@
 #include "bookmarks.h"
 #include "history.h"
 #include "settings.h"
+#include "window_resize.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <libgen.h> // for dirname
@@ -22,10 +23,6 @@
 #else
     #define DEBUG_PRINT(fmt, ...)
 #endif
-
-// Dragging variables
-static int is_dragging = 0;
-static int drag_start_x, drag_start_y;
 
 // Helper function to get absolute path to home page
 static char* get_home_page_path(void)
@@ -168,11 +165,20 @@ static int is_valid_url(const char *str)
 gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
     BrowserWindow *browser = (BrowserWindow *)data;
-    
+
     if (event->button == 1) {
-        is_dragging = 1;
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
+        // Check if cursor is on an edge (for resizing) - use absolute coordinates
+        browser->resize_edge = detect_resize_edge_absolute(GTK_WINDOW(browser->window),
+                                                           event->x_root, event->y_root);
+
+        if (browser->resize_edge != RESIZE_NONE) {
+            browser->is_resizing = 1;
+        } else {
+            browser->is_dragging = 1;
+        }
+
+        browser->drag_start_x = event->x_root;
+        browser->drag_start_y = event->y_root;
         gtk_window_present(GTK_WINDOW(browser->window));
         return TRUE;
     }
@@ -183,9 +189,11 @@ gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer da
 {
     BrowserWindow *browser = (BrowserWindow *)data;
     (void)browser;
-    
+
     if (event->button == 1) {
-        is_dragging = 0;
+        browser->is_dragging = 0;
+        browser->is_resizing = 0;
+        browser->resize_edge = RESIZE_NONE;
         return TRUE;
     }
     return FALSE;
@@ -194,17 +202,36 @@ gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer da
 gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     BrowserWindow *browser = (BrowserWindow *)data;
-    
-    if (is_dragging) {
-        int dx = event->x_root - drag_start_x;
-        int dy = event->y_root - drag_start_y;
-        
+    int window_width, window_height;
+    gtk_window_get_size(GTK_WINDOW(browser->window), &window_width, &window_height);
+
+    // Update cursor for resize hints using absolute coordinates
+    if (!browser->is_dragging && !browser->is_resizing) {
+        int resize_edge = detect_resize_edge_absolute(GTK_WINDOW(browser->window),
+                                                      event->x_root, event->y_root);
+        update_resize_cursor(widget, resize_edge);
+    }
+
+    if (browser->is_resizing) {
+        int delta_x = event->x_root - browser->drag_start_x;
+        int delta_y = event->y_root - browser->drag_start_y;
+
+        apply_window_resize(GTK_WINDOW(browser->window), browser->resize_edge,
+                           delta_x, delta_y, window_width, window_height);
+
+        browser->drag_start_x = event->x_root;
+        browser->drag_start_y = event->y_root;
+        return TRUE;
+    } else if (browser->is_dragging) {
+        int dx = event->x_root - browser->drag_start_x;
+        int dy = event->y_root - browser->drag_start_y;
+
         int x, y;
         gtk_window_get_position(GTK_WINDOW(browser->window), &x, &y);
         gtk_window_move(GTK_WINDOW(browser->window), x + dx, y + dy);
-        
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
+
+        browser->drag_start_x = event->x_root;
+        browser->drag_start_y = event->y_root;
         return TRUE;
     }
     return FALSE;
@@ -563,6 +590,7 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_default_size(GTK_WINDOW(browser->window), 1024, 768);
     gtk_window_set_position(GTK_WINDOW(browser->window), GTK_WIN_POS_CENTER);
     gtk_window_set_decorated(GTK_WINDOW(browser->window), settings.use_system_title_bar ? TRUE : FALSE);
+    gtk_window_set_resizable(GTK_WINDOW(browser->window), TRUE);
     
     // Enable events for dragging on the window - EXACTLY like calculator
     gtk_widget_add_events(browser->window, GDK_BUTTON_PRESS_MASK | 

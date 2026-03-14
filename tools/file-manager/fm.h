@@ -9,7 +9,7 @@
 #include <pwd.h>
 #include <sys/statvfs.h>
 
-typedef struct 
+typedef struct
 
 {
     GtkWidget *window;
@@ -27,6 +27,13 @@ typedef struct
     GFile *current_dir;
     GList *history;
     GList *history_pos;
+
+    // For dragging and resizing
+    int is_dragging;
+    int is_resizing;
+    int resize_edge;
+    int drag_start_x;
+    int drag_start_y;
 } FileManager;
 
 // Browser functions

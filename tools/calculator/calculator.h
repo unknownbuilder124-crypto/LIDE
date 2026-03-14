@@ -25,7 +25,7 @@ typedef struct {
     GtkWidget *history_display;
     GtkWidget *mode_button;
     GtkWidget *button_grid;
-    
+
     char current_input[256];
     char last_result[64];
     char memory[64];
@@ -34,11 +34,15 @@ typedef struct {
     gboolean new_input;
     gboolean error_state;
     CalculatorMode mode;
-    
+
     // For dragging
     int is_dragging;
     int drag_start_x;
     int drag_start_y;
+
+    // For resizing
+    int is_resizing;
+    int resize_edge;
 } Calculator;
 
 // Function prototypes

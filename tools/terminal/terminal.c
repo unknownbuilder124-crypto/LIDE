@@ -3,65 +3,106 @@
 #include <gdk/gdkkeysyms.h>
 #include <stdlib.h>
 #include <string.h>
+#include "window_resize.h"
+
+// Terminal application data
+typedef struct {
+    GtkWidget *window;
+    GtkWidget *notebook;
+
+    // For dragging and resizing
+    int is_dragging;
+    int is_resizing;
+    int resize_edge;
+    int drag_start_x;
+    int drag_start_y;
+} Terminal;
 
 // Function prototypes
-static void new_terminal_tab(const char *initial_directory);
+static void new_terminal_tab(const char *initial_directory, Terminal *term);
 static void spawn_callback(VteTerminal *terminal, GPid pid, GError *error, gpointer user_data);
-static void close_tab_callback(GtkButton *button, gpointer notebook);
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window);
-static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window);
-static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window);
+static void close_tab_callback(GtkButton *button, gpointer terminal);
+static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data);
+static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data);
+static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data);
 static void on_minimize_clicked(GtkButton *button, gpointer window);
 static void on_maximize_clicked(GtkButton *button, gpointer window);
 static void on_close_clicked(GtkButton *button, gpointer window);
 static gboolean on_window_state_changed(GtkWidget *window, GdkEventWindowState *event, gpointer data);
 
-// Global variables
-static GtkWidget *main_window = NULL;
-static GtkWidget *notebook = NULL;
-static int is_dragging = 0;
-static int drag_start_x, drag_start_y;
-
 // Dragging handlers
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window)
+static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
+    Terminal *term = (Terminal *)data;
+
     if (event->button == 1)
     {
-        is_dragging = 1;
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
-        gtk_window_present(GTK_WINDOW(window));
+        // Check if cursor is on an edge (for resizing)
+        term->resize_edge = detect_resize_edge_absolute(GTK_WINDOW(term->window), event->x_root, event->y_root);
+
+        if (term->resize_edge != RESIZE_NONE) {
+            term->is_resizing = 1;
+        } else {
+            term->is_dragging = 1;
+        }
+
+        term->drag_start_x = event->x_root;
+        term->drag_start_y = event->y_root;
+        gtk_window_present(GTK_WINDOW(term->window));
         return TRUE;
     }
     return FALSE;
 }
 
-static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window)
+static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
-    (void)widget;
-    (void)event;
-    (void)window;
-    is_dragging = 0;
+    Terminal *term = (Terminal *)data;
+
+    if (event->button == 1) {
+        term->is_dragging = 0;
+        term->is_resizing = 0;
+        term->resize_edge = RESIZE_NONE;
+        return TRUE;
+    }
     return FALSE;
 }
 
-static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window)
+static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 {
-    GtkWidget *win = GTK_WIDGET(window);
+    Terminal *term = (Terminal *)data;
 
-    if (is_dragging) {
-        int dx = event->x_root - drag_start_x;
-        int dy = event->y_root - drag_start_y;
+    // Update cursor for resize hints
+    if (!term->is_dragging && !term->is_resizing) {
+        int resize_edge = detect_resize_edge_absolute(GTK_WINDOW(term->window), event->x_root, event->y_root);
+        update_resize_cursor(widget, resize_edge);
+    }
+
+    if (term->is_resizing) {
+        int delta_x = event->x_root - term->drag_start_x;
+        int delta_y = event->y_root - term->drag_start_y;
+
+        int window_width, window_height;
+        gtk_window_get_size(GTK_WINDOW(term->window), &window_width, &window_height);
+
+        apply_window_resize(GTK_WINDOW(term->window), term->resize_edge,
+                           delta_x, delta_y, window_width, window_height);
+
+        term->drag_start_x = event->x_root;
+        term->drag_start_y = event->y_root;
+        return TRUE;
+    } else if (term->is_dragging) {
+        int dx = event->x_root - term->drag_start_x;
+        int dy = event->y_root - term->drag_start_y;
 
         int x, y;
-        gtk_window_get_position(GTK_WINDOW(win), &x, &y);
-        gtk_window_move(GTK_WINDOW(win), x + dx, y + dy);
+        gtk_window_get_position(GTK_WINDOW(term->window), &x, &y);
+        gtk_window_move(GTK_WINDOW(term->window), x + dx, y + dy);
 
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
+        term->drag_start_x = event->x_root;
+        term->drag_start_y = event->y_root;
         return TRUE;
     }
     return FALSE;
@@ -145,18 +186,19 @@ static void spawn_callback(VteTerminal *terminal, GPid pid, GError *error, gpoin
 }
 
 // Close tab callback
-static void close_tab_callback(GtkButton *button, gpointer notebook) 
+static void close_tab_callback(GtkButton *button, gpointer data)
 
 {
     GtkWidget *tab = g_object_get_data(G_OBJECT(button), "tab");
+    Terminal *term = (Terminal *)data;
     if (tab) {
-        gtk_notebook_remove_page(GTK_NOTEBOOK(notebook), 
-            gtk_notebook_page_num(GTK_NOTEBOOK(notebook), tab));
+        gtk_notebook_remove_page(GTK_NOTEBOOK(term->notebook),
+            gtk_notebook_page_num(GTK_NOTEBOOK(term->notebook), tab));
     }
 }
 
 // Create a new terminal tab - FIXED: Added scrolled window
-static void new_terminal_tab(const char *initial_directory) 
+static void new_terminal_tab(const char *initial_directory, Terminal *term) 
 
 {
     GtkWidget *vte = vte_terminal_new();
@@ -202,20 +244,25 @@ static void new_terminal_tab(const char *initial_directory)
     gtk_box_pack_start(GTK_BOX(tab_label_box), close_btn, FALSE, FALSE, 0);
     gtk_widget_show_all(tab_label_box);
 
-    // Add to notebook (use scrolled_window instead of vte directly)
-    int page_num = gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window, tab_label_box);
-    gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook), page_num);
-    gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(notebook), scrolled_window, TRUE);
+    // Add to notebook 
+    int page_num = gtk_notebook_append_page(GTK_NOTEBOOK(term->notebook), scrolled_window, tab_label_box);
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(term->notebook), page_num);
+    gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(term->notebook), scrolled_window, TRUE);
 
     // Connect close button
     g_object_set_data(G_OBJECT(close_btn), "tab", scrolled_window);
-    g_signal_connect(close_btn, "clicked", G_CALLBACK(close_tab_callback), notebook);
+    g_signal_connect(close_btn, "clicked", G_CALLBACK(close_tab_callback), term);
 }
 
 // Window activate callback
-static void activate(GtkApplication *app, gpointer user_data) 
+static void activate(GtkApplication *app, gpointer user_data)
 
 {
+    Terminal *term = g_new(Terminal, 1);
+    term->is_dragging = 0;
+    term->is_resizing = 0;
+    term->resize_edge = RESIZE_NONE;
+
     GtkWidget *vbox;
     GtkWidget *title_bar;
     GtkWidget *title_label;
@@ -225,19 +272,20 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *close_btn;
 
     // Create main window
-    main_window = gtk_application_window_new(app);
+    GtkWidget *main_window = gtk_application_window_new(app);
+    term->window = main_window;
     gtk_window_set_title(GTK_WINDOW(main_window), "Terminal");
     gtk_window_set_default_size(GTK_WINDOW(main_window), 800, 600);
     gtk_window_set_position(GTK_WINDOW(main_window), GTK_WIN_POS_CENTER);
-    gtk_window_set_decorated(GTK_WINDOW(main_window), FALSE);
+    gtk_window_set_decorated(GTK_WINDOW(main_window), TRUE);
 
     // Enable dragging
     gtk_widget_add_events(main_window, GDK_BUTTON_PRESS_MASK |
                                        GDK_BUTTON_RELEASE_MASK |
                                        GDK_POINTER_MOTION_MASK);
-    g_signal_connect(main_window, "button-press-event", G_CALLBACK(on_button_press), main_window);
-    g_signal_connect(main_window, "button-release-event", G_CALLBACK(on_button_release), main_window);
-    g_signal_connect(main_window, "motion-notify-event", G_CALLBACK(on_motion_notify), main_window);
+    g_signal_connect(main_window, "button-press-event", G_CALLBACK(on_button_press), term);
+    g_signal_connect(main_window, "button-release-event", G_CALLBACK(on_button_release), term);
+    g_signal_connect(main_window, "motion-notify-event", G_CALLBACK(on_motion_notify), term);
 
     apply_css();
 
@@ -261,32 +309,35 @@ static void activate(GtkApplication *app, gpointer user_data)
     // Minimize button
     min_btn = gtk_button_new_with_label("─");
     gtk_widget_set_size_request(min_btn, 30, 25);
-    g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), main_window);
+    g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), term->window);
     gtk_box_pack_start(GTK_BOX(window_buttons), min_btn, FALSE, FALSE, 0);
 
     // Maximize button
     max_btn = gtk_button_new_with_label("□");
     gtk_widget_set_size_request(max_btn, 30, 25);
-    g_signal_connect(max_btn, "clicked", G_CALLBACK(on_maximize_clicked), main_window);
+    g_signal_connect(max_btn, "clicked", G_CALLBACK(on_maximize_clicked), term->window);
     g_signal_connect(main_window, "window-state-event", G_CALLBACK(on_window_state_changed), max_btn);
     gtk_box_pack_start(GTK_BOX(window_buttons), max_btn, FALSE, FALSE, 0);
 
     // Close button
     close_btn = gtk_button_new_with_label("✕");
     gtk_widget_set_size_request(close_btn, 30, 25);
-    g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), main_window);
+    g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), term->window);
     gtk_box_pack_start(GTK_BOX(window_buttons), close_btn, FALSE, FALSE, 0);
 
     // Notebook for tabs
-    notebook = gtk_notebook_new();
+    GtkWidget *notebook = gtk_notebook_new();
+    term->notebook = notebook;
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), TRUE);
     gtk_notebook_set_show_border(GTK_NOTEBOOK(notebook), FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
 
     // Create first tab
-    new_terminal_tab(NULL);
+    new_terminal_tab(NULL, term);
 
+    gtk_window_set_resizable(GTK_WINDOW(main_window), TRUE);
     gtk_widget_show_all(main_window);
+    g_object_set_data_full(G_OBJECT(main_window), "terminal", term, g_free);
 }
 
 int main(int argc, char **argv) 

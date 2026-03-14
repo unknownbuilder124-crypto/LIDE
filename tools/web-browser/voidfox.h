@@ -18,6 +18,13 @@ typedef struct {
     GtkWidget *home_button;           // Add this
     GtkWidget *title_bar;              // Add this
     GtkWidget *bookmarks_bar;          // Add this
+
+    // For dragging and resizing
+    int is_dragging;
+    int is_resizing;
+    int resize_edge;
+    int drag_start_x;
+    int drag_start_y;
 } BrowserWindow;
 
 typedef struct {

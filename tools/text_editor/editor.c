@@ -8,10 +8,8 @@
 #include <sys/stat.h>
 #include <libgen.h>
 #include "edit.h"
-
-// Dragging variables
-static int is_dragging = 0;
-static int drag_start_x, drag_start_y;
+#include "text_editor.h"
+#include "window_resize.h"
 
 // Text buffer
 static GtkTextBuffer *buffer = NULL;
@@ -38,45 +36,78 @@ static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer use
 static void custom_file_dialog(GtkWidget *parent, DialogMode mode);
 
 // Dragging handlers
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window)
+static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
+    Editor *ed = (Editor *)data;
+
     if (event->button == 1)
     {
-        is_dragging = 1;
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
-        gtk_window_present(GTK_WINDOW(window));
+        // Check if cursor is on an edge (for resizing)
+        ed->resize_edge = detect_resize_edge_absolute(GTK_WINDOW(ed->window), event->x_root, event->y_root);
+
+        if (ed->resize_edge != RESIZE_NONE) {
+            ed->is_resizing = 1;
+        } else {
+            ed->is_dragging = 1;
+        }
+
+        ed->drag_start_x = event->x_root;
+        ed->drag_start_y = event->y_root;
+        gtk_window_present(GTK_WINDOW(ed->window));
         return TRUE;
     }
     return FALSE;
 }
 
-static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window)
+static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
-    (void)widget;
-    (void)event;
-    (void)window;
-    is_dragging = 0;
+    Editor *ed = (Editor *)data;
+
+    if (event->button == 1) {
+        ed->is_dragging = 0;
+        ed->is_resizing = 0;
+        ed->resize_edge = RESIZE_NONE;
+        return TRUE;
+    }
     return FALSE;
 }
 
-static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window)
+static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 {
-    GtkWidget *win = GTK_WIDGET(window);
+    Editor *ed = (Editor *)data;
 
-    if (is_dragging) {
-        int dx = event->x_root - drag_start_x;
-        int dy = event->y_root - drag_start_y;
+    // Update cursor for resize hints
+    if (!ed->is_dragging && !ed->is_resizing) {
+        int resize_edge = detect_resize_edge_absolute(GTK_WINDOW(ed->window), event->x_root, event->y_root);
+        update_resize_cursor(widget, resize_edge);
+    }
+
+    if (ed->is_resizing) {
+        int delta_x = event->x_root - ed->drag_start_x;
+        int delta_y = event->y_root - ed->drag_start_y;
+
+        int window_width, window_height;
+        gtk_window_get_size(GTK_WINDOW(ed->window), &window_width, &window_height);
+
+        apply_window_resize(GTK_WINDOW(ed->window), ed->resize_edge,
+                           delta_x, delta_y, window_width, window_height);
+
+        ed->drag_start_x = event->x_root;
+        ed->drag_start_y = event->y_root;
+        return TRUE;
+    } else if (ed->is_dragging) {
+        int dx = event->x_root - ed->drag_start_x;
+        int dy = event->y_root - ed->drag_start_y;
 
         int x, y;
-        gtk_window_get_position(GTK_WINDOW(win), &x, &y);
-        gtk_window_move(GTK_WINDOW(win), x + dx, y + dy);
+        gtk_window_get_position(GTK_WINDOW(ed->window), &x, &y);
+        gtk_window_move(GTK_WINDOW(ed->window), x + dx, y + dy);
 
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
+        ed->drag_start_x = event->x_root;
+        ed->drag_start_y = event->y_root;
         return TRUE;
     }
     return FALSE;
@@ -590,6 +621,18 @@ static void activate(GtkApplication *app, gpointer user_data)
 
 {
     (void)user_data;
+
+    // Create Editor struct
+    Editor *ed = g_new(Editor, 1);
+    ed->current_file = NULL;
+    ed->modified = FALSE;
+    ed->find_dialog = NULL;
+    ed->find_entry = NULL;
+    ed->replace_entry = NULL;
+    ed->is_dragging = 0;
+    ed->is_resizing = 0;
+    ed->resize_edge = RESIZE_NONE;
+
     GtkWidget *window;
     GtkWidget *vbox;
     GtkWidget *toolbar;
@@ -601,6 +644,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *max_btn;  // Store maximize button for state tracking
 
     window = gtk_application_window_new(app);
+    ed->window = window;
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Editor - Untitled");
     gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
@@ -609,9 +653,9 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK |
                                    GDK_BUTTON_RELEASE_MASK |
                                    GDK_POINTER_MOTION_MASK);
-    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press), window);
-    g_signal_connect(window, "button-release-event", G_CALLBACK(on_button_release), window);
-    g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_notify), window);
+    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press), ed);
+    g_signal_connect(window, "button-release-event", G_CALLBACK(on_button_release), ed);
+    g_signal_connect(window, "motion-notify-event", G_CALLBACK(on_motion_notify), ed);
 
     // Main vertical box
     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -687,7 +731,9 @@ static void activate(GtkApplication *app, gpointer user_data)
 
     // Text view
     text_view = gtk_text_view_new();
-    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+    ed->text_view = text_view;
+    ed->buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_view));
+    buffer = ed->buffer;
     gtk_container_add(GTK_CONTAINER(scrolled), text_view);
 
     // Initialize edit features
@@ -841,7 +887,10 @@ static void activate(GtkApplication *app, gpointer user_data)
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
 
+    gtk_window_set_decorated(GTK_WINDOW(window), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(window), TRUE);
     gtk_widget_show_all(window);
+    g_object_set_data_full(G_OBJECT(window), "editor", ed, g_free);
 }
 
 int main(int argc, char **argv)

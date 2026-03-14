@@ -1,47 +1,79 @@
 #include "fm.h"
+#include "window_resize.h"
 
-// Dragging variables 
-static int is_dragging = 0;
-static int drag_start_x, drag_start_y;
-
-// Dragging functions 
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer window) 
+// Dragging functions
+static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
-    if (event->button == 1) 
+    FileManager *fm = (FileManager *)data;
+
+    if (event->button == 1)
     {
-        is_dragging = 1;
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
-        gtk_window_present(GTK_WINDOW(window));
+        // Check if cursor is on an edge (for resizing)
+        fm->resize_edge = detect_resize_edge_absolute(GTK_WINDOW(fm->window), event->x_root, event->y_root);
+
+        if (fm->resize_edge != RESIZE_NONE) {
+            fm->is_resizing = 1;
+        } else {
+            fm->is_dragging = 1;
+        }
+
+        fm->drag_start_x = event->x_root;
+        fm->drag_start_y = event->y_root;
+        gtk_window_present(GTK_WINDOW(fm->window));
         return TRUE;
     }
     return FALSE;
 }
 
-static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer window) 
+static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer data)
 
 {
+    FileManager *fm = (FileManager *)data;
+
     if (event->button == 1) {
-        is_dragging = 0;
+        fm->is_dragging = 0;
+        fm->is_resizing = 0;
+        fm->resize_edge = RESIZE_NONE;
         return TRUE;
     }
     return FALSE;
 }
 
-static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer window) 
+static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 {
-    if (is_dragging) {
-        int dx = event->x_root - drag_start_x;
-        int dy = event->y_root - drag_start_y;
-        
+    FileManager *fm = (FileManager *)data;
+
+    // Update cursor for resize hints
+    if (!fm->is_dragging && !fm->is_resizing) {
+        int resize_edge = detect_resize_edge_absolute(GTK_WINDOW(fm->window), event->x_root, event->y_root);
+        update_resize_cursor(widget, resize_edge);
+    }
+
+    if (fm->is_resizing) {
+        int delta_x = event->x_root - fm->drag_start_x;
+        int delta_y = event->y_root - fm->drag_start_y;
+
+        int window_width, window_height;
+        gtk_window_get_size(GTK_WINDOW(fm->window), &window_width, &window_height);
+
+        apply_window_resize(GTK_WINDOW(fm->window), fm->resize_edge,
+                           delta_x, delta_y, window_width, window_height);
+
+        fm->drag_start_x = event->x_root;
+        fm->drag_start_y = event->y_root;
+        return TRUE;
+    } else if (fm->is_dragging) {
+        int dx = event->x_root - fm->drag_start_x;
+        int dy = event->y_root - fm->drag_start_y;
+
         int x, y;
-        gtk_window_get_position(GTK_WINDOW(window), &x, &y);
-        gtk_window_move(GTK_WINDOW(window), x + dx, y + dy);
-        
-        drag_start_x = event->x_root;
-        drag_start_y = event->y_root;
+        gtk_window_get_position(GTK_WINDOW(fm->window), &x, &y);
+        gtk_window_move(GTK_WINDOW(fm->window), x + dx, y + dy);
+
+        fm->drag_start_x = event->x_root;
+        fm->drag_start_y = event->y_root;
         return TRUE;
     }
     return FALSE;
@@ -106,16 +138,18 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_window_set_default_size(GTK_WINDOW(fm->window), 900, 600);
     gtk_window_set_position(GTK_WINDOW(fm->window), GTK_WIN_POS_CENTER);
     gtk_container_set_border_width(GTK_CONTAINER(fm->window), 0);
+    gtk_window_set_decorated(GTK_WINDOW(fm->window), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(fm->window), TRUE);
     
     // Enable events for dragging 
     gtk_widget_add_events(fm->window, GDK_BUTTON_PRESS_MASK | 
                                        GDK_BUTTON_RELEASE_MASK | 
                                        GDK_POINTER_MOTION_MASK);
     
-    // Connect drag signals to the window itself 
-    g_signal_connect(fm->window, "button-press-event", G_CALLBACK(on_button_press), fm->window);
-    g_signal_connect(fm->window, "button-release-event", G_CALLBACK(on_button_release), fm->window);
-    g_signal_connect(fm->window, "motion-notify-event", G_CALLBACK(on_motion_notify), fm->window);
+    // Connect drag signals to the window itself
+    g_signal_connect(fm->window, "button-press-event", G_CALLBACK(on_button_press), fm);
+    g_signal_connect(fm->window, "button-release-event", G_CALLBACK(on_button_release), fm);
+    g_signal_connect(fm->window, "motion-notify-event", G_CALLBACK(on_motion_notify), fm);
 
     // Apply CSS for black background and red accents
     GtkCssProvider *provider = gtk_css_provider_new();

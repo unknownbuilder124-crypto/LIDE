@@ -17,6 +17,13 @@ typedef struct {
     GtkWidget *replace_entry;
     char *current_file;
     gboolean modified;
+
+    // For dragging and resizing
+    int is_dragging;
+    int is_resizing;
+    int resize_edge;
+    int drag_start_x;
+    int drag_start_y;
 } Editor;
 
 // Document functions
