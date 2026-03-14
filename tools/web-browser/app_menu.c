@@ -17,6 +17,7 @@ extern void show_downloads_tab(BrowserWindow *browser);
 extern void show_passwords_tab(BrowserWindow *browser);
 extern void show_extensions_tab(BrowserWindow *browser);
 extern void show_themes_tab(BrowserWindow *browser);
+extern void show_settings_tab(BrowserWindow *browser);
 
 // Find in page dialog data
 typedef struct {
@@ -268,12 +269,12 @@ static void on_zoom_reset_clicked(GtkMenuItem *item, BrowserWindow *browser)
     }
 }
 
-// Updated settings callback to use the proper settings dialog
+// Updated settings callback to use the settings tab instead of dialog
 static void on_settings_clicked(GtkMenuItem *item, BrowserWindow *browser)
 
 {
     (void)item;
-    show_settings_dialog(browser);
+    show_settings_tab(browser);
 }
 
 static void on_report_broken_clicked(GtkMenuItem *item, BrowserWindow *browser)

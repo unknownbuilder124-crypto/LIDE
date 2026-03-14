@@ -4,6 +4,6 @@
 #include "voidfox.h"
 
 
-// This file is for future extensions.
+// Tab-specific functionality and utilities
 
 #endif

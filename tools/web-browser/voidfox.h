@@ -15,9 +15,9 @@ typedef struct {
     GtkWidget *stop_button;
     GtkWidget *app_menu_button;
     GtkWidget *bookmarks_button;
-    GtkWidget *home_button;           // Add this
-    GtkWidget *title_bar;              // Add this
-    GtkWidget *bookmarks_bar;          // Add this
+    GtkWidget *home_button;
+    GtkWidget *title_bar;
+    GtkWidget *bookmarks_bar;
 
     // For dragging and resizing
     int is_dragging;
@@ -43,6 +43,6 @@ void go_forward(BrowserWindow *browser);
 void reload_page(BrowserWindow *browser);
 void stop_loading(BrowserWindow *browser);
 void update_navigation_buttons(BrowserWindow *browser);
-void settings_updated(BrowserWindow *browser);  // Add this
+void settings_updated(BrowserWindow *browser);
 
 #endif
