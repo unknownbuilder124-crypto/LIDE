@@ -16,6 +16,7 @@ extern void show_history_tab(BrowserWindow *browser);
 extern void show_downloads_tab(BrowserWindow *browser);
 extern void show_passwords_tab(BrowserWindow *browser);
 extern void show_extensions_tab(BrowserWindow *browser);
+extern void show_themes_tab(BrowserWindow *browser);
 
 // Find in page dialog data
 typedef struct {
@@ -130,11 +131,11 @@ static void on_passwords_clicked(GtkMenuItem *item, BrowserWindow *browser)
     show_passwords_tab(browser);
 }
 
-static void on_extensions_clicked(GtkMenuItem *item, BrowserWindow *browser)
+static void on_themes_clicked(GtkMenuItem *item, BrowserWindow *browser)
 
 {
     (void)item;
-    show_extensions_tab(browser);
+    show_themes_tab(browser);
 }
 
 static void on_print_clicked(GtkMenuItem *item, BrowserWindow *browser)
@@ -327,10 +328,10 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
     GtkWidget *passwords_item = gtk_menu_item_new_with_label("Passwords");
     g_signal_connect(passwords_item, "activate", G_CALLBACK(on_passwords_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), passwords_item);
-    
-    GtkWidget *extensions_item = gtk_menu_item_new_with_label("Extensions and themes");
-    g_signal_connect(extensions_item, "activate", G_CALLBACK(on_extensions_clicked), browser);
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), extensions_item);
+
+    GtkWidget *themes_item = gtk_menu_item_new_with_label("Themes");
+    g_signal_connect(themes_item, "activate", G_CALLBACK(on_themes_clicked), browser);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), themes_item);
     
     GtkWidget *sep2 = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep2);
