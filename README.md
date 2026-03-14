@@ -17,7 +17,8 @@ GTK3-based panel with:
 - Dark theme (#0b0f14 background, #00ff88 accent)
 - Live clock display with date
 - "BlackLine" button (placeholder for future menu)
-- "Tools" button to open tools container
+- "Tools" button to open or raise the tools container
+- "Minimized Apps" button (📌) to toggle the minimized window list
 - Full-width dock-style window that stays on top
 
 ### Application Launcher (`blackline-launcher`)
@@ -36,9 +37,10 @@ Custom-built file manager with:
 - Sortable columns (click headers to sort)
 - Custom black background with red accents (#ff3333)
 - Draggable window (click anywhere to drag)
-- Minimize and close buttons in title bar
+- Minimize/maximize/close buttons in title bar
 - Folder and file browsing with proper type detection
 - Open files with default applications
+- Edge-based window resizing with resize cursor hints
 
 ### Text Editor (`blackline-editor`)
 Feature-rich text editor with:
@@ -52,6 +54,14 @@ Feature-rich text editor with:
 - Custom file dialogs with folder navigation
 - Dark theme matching the desktop aesthetic
 - Draggable window with minimize/maximize/close buttons
+- Edge-based window resizing with resize cursor hints
+
+### Terminal (`blackline-terminal`)
+Tabbed terminal emulator using VTE:
+- Multiple tabs with close buttons
+- Scrollback support
+- Custom title bar with minimize/maximize/close buttons
+- Drag-to-move and edge-based resize with cursor hints
 
 ### Calculator (`blackline-calculator`)
 Scientific calculator with:
@@ -62,6 +72,7 @@ Scientific calculator with:
 - Keyboard input support
 - Clean, intuitive interface
 - Dark theme with green accent
+- Edge-based window resizing with resize cursor hints
 
 ### System Monitor (`blackline-system-monitor`)
 Real-time system monitoring with:
@@ -72,6 +83,7 @@ Real-time system monitoring with:
 - Visual graphs for CPU and memory trends
 - Dark theme with green accents
 - Draggable window with minimize/maximize/close buttons
+- Edge-based window resizing with resize cursor hints
 
 ### Web Browser - VoidFox (`voidfox`)
 Lightweight web browser built with WebKitGTK, featuring a full application menu and built-in management tabs:
@@ -82,34 +94,53 @@ Lightweight web browser built with WebKitGTK, featuring a full application menu 
 - **Search button** for quick web searches
 - **Application menu** (☰) with:
   - New window / New private window
-  - Bookmarks, History, Downloads, Passwords, Extensions and themes
+  - Bookmarks, History, Downloads, Passwords, Themes
   - Print, Find in page, Zoom controls, Settings, Report broken site
 - **Bookmarks manager** – add, manage, and open bookmarks; persistent storage in `bookmarks.txt`
 - **History viewer** – browse visited pages with timestamps; clear history
 - **Downloads manager** – track download progress; open download folder; persistent storage in `downloads.txt`
 - **Password manager** – store and manage site credentials; copy to clipboard; show/hide passwords; persistent storage in `passwords.txt`
+- **Settings dialog** – home page, search engine, privacy, permissions, appearance, and download preferences; stored in `~/.config/lide/voidfox/voidfox_settings.txt`
+- **Permission controls** – location, notifications, camera, and microphone gated by settings
 - **Extensions placeholder** – future extension support
 - Custom title bar with minimize/maximize/close buttons
 - Dark theme with green accent (#00ff88)
 - Draggable window (click anywhere on title bar to drag)
-- Session management (remembers tabs between sessions)
+- Edge-based window resizing with resize cursor hints
+
+### Firefox Launcher (`firefox-wrapper`)
+GTK wrapper that launches system Firefox:
+- Checks for `firefox` or `firefox-esr` availability
+- Launch status feedback and duplicate-run protection
+- Custom title bar with minimize/maximize/close buttons
+- Draggable window
 
 ### Tools Container (`blackline-tools`)
 Utility window providing quick access to all BlackLine tools:
 - **File Manager** – Launches `blackline-fm`
 - **Text Editor** – Launches `blackline-editor`
+- **Terminal** – Launches `blackline-terminal`
 - **Calculator** – Launches `blackline-calculator`
 - **System Monitor** – Launches `blackline-system-monitor`
 - **Web Browser** – Launches `voidfox`
+- **Firefox** – Launches `firefox-wrapper`
 - Clean, icon-based interface with emoji icons for easy recognition
-- Close button and focus-out auto-close
+- List/grid view toggle with persisted mode in `~/.config/blackline/tools_view_mode.conf`
+- Fixed position below the panel, always on top
+- Close button
 - Dark theme matching the desktop aesthetic
-- Draggable window (click anywhere to drag)
 - Automatically closes after launching an application
+
+### Minimized Apps Container
+Window list for minimized apps:
+- Tracks minimized windows via X11 events
+- Restore or close individual windows
+- "Close All" option for bulk cleanup
+- Toggle from the panel's 📌 button
 
 ### Wallpaper Service (`blackline-background`)
 Continuous background setter that:
-- Uses `feh` to set wallpaper from `~/Desktop/LIDE/images/wal1.png`
+- Uses `feh` to set wallpaper from `./images/wal1.png`
 - Falls back to solid color (#0b0f14) if wallpaper not found
 - Runs continuously to ensure wallpaper persists
 - Prevents window managers from overriding the background
@@ -119,6 +150,27 @@ Starts all components in the correct order:
 - Wallpaper service → Panel → Window Manager
 - Proper process management and cleanup on exit
 - Handles SIGINT and SIGTERM gracefully
+
+## Build & Run
+
+### Build
+- Install build deps: `gcc`, `make`, `pkg-config`, `gtk+-3.0`, `x11`
+- VoidFox requires `webkit2gtk-4.1` or `webkit2gtk-4.0`
+- Terminal requires `vte-2.91` (skipped if missing)
+- Wallpaper uses `feh` (recommended)
+- Build everything: `make` (terminal is skipped if `vte-2.91` is missing)
+- Install system-wide: `make install` (uses `sudo` and copies to `/usr/local/bin`)
+
+### Run (nested X test)
+- `./run.sh` (uses `Xephyr`, `xdpyinfo`, and `pkill`)
+- Note: `run.sh` assumes the repo is at `~/Desktop/LIDE`
+- Requires `Xephyr` installed
+
+### Run (manual)
+- `./blackline-background &`
+- `./blackline-panel &`
+- `./blackline-wm &`
+- Optional tools: `./blackline-tools` (or launch any component directly)
 
 ## Keyboard Shortcuts
 
@@ -154,6 +206,9 @@ LIDE/
 │ ├── minimized_container.c # Minimized window container
 │ ├── minimized_container.h # Container headers
 │ ├── tools_container.c # Tools window
+│ ├── viewMode.c # Tools view mode persistence
+│ ├── viewMode.h # View mode headers
+│ ├── window_resize.h # Shared edge-resize helpers
 │ │
 │ ├── file-manager/ # Custom file manager
 │ │ ├── fm.c # File manager GUI
@@ -166,6 +221,9 @@ LIDE/
 │ │ ├── edit.h # Edit headers
 │ │ └── text_editor.h # Editor headers
 │ │
+│ ├── terminal/ # Terminal
+│ │ └── terminal.c # VTE-based tabbed terminal
+│ │
 │ ├── calculator/ # Calculator
 │ │ ├── calculator.c # Calculator logic and GUI
 │ │ └── calculator.h # Calculator headers
@@ -176,6 +234,12 @@ LIDE/
 │ │ ├── memory.c # Memory monitoring
 │ │ ├── processes.c # Process list
 │ │ └── monitor.h # Monitor headers
+│ │
+│ ├── firefox/ # Firefox launcher
+│ │ ├── firefox-wrapper.c # System Firefox launcher UI
+│ │ ├── firefox.c # Lightweight WebKit browser UI
+│ │ ├── firefox.h # Firefox headers
+│ │ └── firefox.desktop # Desktop entry
 │ │
 │ └── web-browser/ # VoidFox web browser
 │ ├── voidfox.c # Main browser entry
@@ -194,6 +258,8 @@ LIDE/
 │ ├── passwords.h # Password headers
 │ ├── extensions.c # Extensions placeholder
 │ ├── extensions.h # Extensions headers
+│ ├── settings.c # Settings dialog and persistence
+│ ├── settings.h # Settings headers
 │ └── voidfox.h # Main browser headers
 │
 ├── session/ # Session manager
