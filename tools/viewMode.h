@@ -20,6 +20,7 @@ typedef struct {
 void view_mode_save(void);
 void view_mode_load(void);
 ViewMode view_mode_get_current(void);
+void view_mode_set_current(ViewMode mode);
 
 // UI creation
 GtkWidget* view_mode_create_container(const ToolItem *tools, int num_tools, ViewMode mode, gpointer window);

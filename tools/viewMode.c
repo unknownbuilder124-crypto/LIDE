@@ -93,6 +93,18 @@ ViewMode view_mode_get_current(void)
     return current_mode;
 }
 
+
+void view_mode_set_current(ViewMode mode)
+{
+    if (mode == VIEW_MODE_LIST || mode == VIEW_MODE_GRID) {
+        current_mode = mode;
+        g_print("View mode set to %d\n", mode);
+    } else {
+        g_warning("Invalid view mode: %d", mode);
+    }
+}
+
+
 static void populate_list_view(GtkWidget *container, const ToolItem *tools, int num_tools, gpointer window)
 
 {

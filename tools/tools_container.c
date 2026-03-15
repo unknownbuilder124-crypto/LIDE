@@ -20,6 +20,17 @@ static gboolean is_minimized = FALSE;  // Added for minimize state
 // Forward declarations for animation callbacks
 static void on_minimize_clicked(GtkButton *button, gpointer window);
 static gboolean on_window_state_changed(GtkWidget *window, GdkEventWindowState *event, gpointer data);
+static gboolean remove_old_container(gpointer user_data);
+static gboolean reset_button_opacity(gpointer button);
+
+// Data structure for view toggle
+typedef struct {
+    GtkWidget *scrolled_window;
+    GtkWidget *container;      // current container
+    GtkWidget *old_container;   // container being replaced
+    GtkWidget *window;
+    GtkWidget *view_button;
+} ViewToggleData;
 
 // Launch functions with smooth animations
 static void launch_file_manager(GtkButton *button, gpointer window) 
@@ -368,7 +379,7 @@ static gboolean launch_terminal_event(GtkWidget *widget, GdkEventButton *event, 
     return TRUE;
 }
 
-// Minimize button handler with animation
+// Minimize button handler with animation - FIXED VERSION
 static void on_minimize_clicked(GtkButton *button, gpointer window) 
 {
     (void)button;
@@ -408,7 +419,9 @@ static void on_minimize_clicked(GtkButton *button, gpointer window)
     anim->start_time = g_get_monotonic_time() / 1000;
     anim->easing = ANIM_EASE_IN_OUT_QUAD;
     anim->active = TRUE;
-    anim->on_complete = (void (*)(gpointer))gtk_window_iconify;
+    
+    // Instead of iconifying at the end, just hide the window
+    anim->on_complete = (void (*)(gpointer))gtk_widget_hide;
     anim->complete_data = win;
     
     is_minimized = TRUE;
@@ -583,16 +596,37 @@ static void on_window_realized(GtkWidget *window, gpointer data)
     }
 }
 
-// View toggle callback with animation
-static void on_view_toggle_clicked(GtkButton *button, gpointer user_data) 
-
+// Helper functions for view toggle
+static gboolean remove_old_container(gpointer user_data)
 {
-    // Retrieve stored data
-    GtkWidget *scrolled_window = g_object_get_data(G_OBJECT(button), "scrolled_window");
-    GtkWidget *old_container = g_object_get_data(G_OBJECT(button), "container");
-    GtkWidget *window = g_object_get_data(G_OBJECT(button), "window");
+    ViewToggleData *data = (ViewToggleData *)user_data;
     
-    if (!scrolled_window || !old_container || !window) {
+    if (data->old_container && GTK_IS_WIDGET(data->old_container)) {
+        // Hide first, then destroy after a short delay
+        gtk_widget_hide(data->old_container);
+        
+        // Use idle add to ensure we're not in the middle of an animation
+        g_idle_add((GSourceFunc)gtk_widget_destroy, data->old_container);
+        data->old_container = NULL;
+    }
+    
+    return FALSE;
+}
+
+static gboolean reset_button_opacity(gpointer button)
+{
+    if (button && GTK_IS_WIDGET(button)) {
+        gtk_widget_set_opacity(GTK_WIDGET(button), 1.0);
+    }
+    return FALSE;
+}
+
+// View toggle callback with animation - FIXED VERSION
+static void on_view_toggle_clicked(GtkButton *button, gpointer user_data) 
+{
+    ViewToggleData *data = (ViewToggleData *)user_data;
+    
+    if (!data->scrolled_window || !data->container || !data->window || !data->view_button) {
         g_warning("Missing data in view toggle callback");
         return;
     }
@@ -604,44 +638,42 @@ static void on_view_toggle_clicked(GtkButton *button, gpointer user_data)
     ViewMode current = view_mode_get_current();
     ViewMode new_mode = (current == VIEW_MODE_LIST) ? VIEW_MODE_GRID : VIEW_MODE_LIST;
     
-    // Fade out old container
-    gtk_widget_set_opacity(old_container, 1.0);
-    Animation *fade_out = g_new0(Animation, 1);
-    fade_out->widget = old_container;
-    fade_out->start_opacity = 1.0;
-    fade_out->target_opacity = 0.0;
-    fade_out->duration = 200;
-    fade_out->start_time = g_get_monotonic_time() / 1000;
-    fade_out->easing = ANIM_EASE_IN_QUAD;
-    fade_out->active = TRUE;
-    gtk_widget_add_tick_callback(old_container, on_animation_tick, fade_out, g_free);
+    // Store the current container to be removed later
+    GtkWidget *old_container = data->container;
     
-    // Delay the container removal and creation
-    g_timeout_add(200, (GSourceFunc)gtk_widget_hide, old_container);
-    g_timeout_add(250, (GSourceFunc)gtk_container_remove, 
-                 g_strdup_printf("%p|%p", scrolled_window, old_container));
+    // Hide the old container immediately to prevent visual glitches
+    gtk_widget_hide(old_container);
     
     // Create new container with new mode
-    GtkWidget *new_container = view_mode_create_container(tools, num_tools, new_mode, window);
+    GtkWidget *new_container = view_mode_create_container(tools, num_tools, new_mode, data->window);
     gtk_widget_set_opacity(new_container, 0.0);
     
+    // Remove old container from scrolled window
+    GtkWidget *current_child = gtk_bin_get_child(GTK_BIN(data->scrolled_window));
+    if (current_child) {
+        gtk_container_remove(GTK_CONTAINER(data->scrolled_window), current_child);
+    }
+    
     // Add new container to scrolled window
-    gtk_container_add(GTK_CONTAINER(scrolled_window), new_container);
+    gtk_container_add(GTK_CONTAINER(data->scrolled_window), new_container);
     
-    // Update stored container
-    g_object_set_data(G_OBJECT(button), "container", new_container);
+    // Update data
+    data->container = new_container;
     
-    // Update button label and window size - same height for both modes
+    // Set new mode
+    view_mode_set_current(new_mode);
+    
+    // Update button label and window size
     if (new_mode == VIEW_MODE_LIST) {
         gtk_button_set_label(button, "📋 List");
-        gtk_window_set_default_size(GTK_WINDOW(window), 300, 400);
+        gtk_window_set_default_size(GTK_WINDOW(data->window), 300, 400);
     } else {
         gtk_button_set_label(button, "🔲 Grid");
-        gtk_window_set_default_size(GTK_WINDOW(window), 350, 400);
+        gtk_window_set_default_size(GTK_WINDOW(data->window), 350, 400);
     }
     
     // Show all widgets
-    gtk_widget_show_all(window);
+    gtk_widget_show_all(data->window);
     
     // Fade in new container
     Animation *fade_in = g_new0(Animation, 1);
@@ -654,12 +686,16 @@ static void on_view_toggle_clicked(GtkButton *button, gpointer user_data)
     fade_in->active = TRUE;
     gtk_widget_add_tick_callback(new_container, on_animation_tick, fade_in, g_free);
     
-    // Restore button opacity
-    g_timeout_add(300, (GSourceFunc)gtk_widget_set_opacity, 
-                 g_strdup_printf("%p|%f", button, 1.0));
+    // Destroy the old container after a short delay
+    g_timeout_add(50, (GSourceFunc)gtk_widget_destroy, old_container);
+    
+    // Restore button opacity after fade in
+    g_timeout_add(300, reset_button_opacity, button);
     
     // Save the new mode to config file
     view_mode_save();
+    
+    g_print("Switched to %s mode\n", new_mode == VIEW_MODE_LIST ? "LIST" : "GRID");
 }
 
 static void activate(GtkApplication *app, gpointer user_data) 
@@ -758,13 +794,19 @@ static void activate(GtkApplication *app, gpointer user_data)
     // Pack the scrolled window into the main vbox
     gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 0);
     
+    // Create and store toggle data
+    ViewToggleData *toggle_data = g_new0(ViewToggleData, 1);
+    toggle_data->scrolled_window = scrolled_window;
+    toggle_data->container = tools_container;
+    toggle_data->old_container = NULL;
+    toggle_data->window = window;
+    toggle_data->view_button = view_btn;
+    
     // Store data on view button for later use
-    g_object_set_data(G_OBJECT(view_btn), "scrolled_window", scrolled_window);
-    g_object_set_data(G_OBJECT(view_btn), "container", tools_container);
-    g_object_set_data(G_OBJECT(view_btn), "window", window);
+    g_object_set_data_full(G_OBJECT(view_btn), "toggle-data", toggle_data, g_free);
     
     // Connect view toggle button
-    g_signal_connect(view_btn, "clicked", G_CALLBACK(on_view_toggle_clicked), NULL);
+    g_signal_connect(view_btn, "clicked", G_CALLBACK(on_view_toggle_clicked), toggle_data);
     
     // Connect destroy signal to clean up atom
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), NULL);
@@ -776,15 +818,15 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *bottom_spacer = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(vbox), bottom_spacer, TRUE, TRUE, 0);
     
-    // CSS with animation support
+    // CSS with animation support - REMOVED TRANSFORM PROPERTIES TO FIX WARNINGS
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
         "window { background-color: #0b0f14; color: #ffffff; border: 1px solid #00ff88; "
         "         transition: all 200ms ease-out; }"
         "button { background-color: #1e2429; color: #00ff88; border: none; "
         "         transition: all 150ms ease-out; }"
-        "button:hover { background-color: #2a323a; transform: scale(1.05); }"
-        "button:active { background-color: #2a323a; transform: scale(0.95); }"
+        "button:hover { background-color: #2a323a; }"
+        "button:active { background-color: #2a323a; }"
         "label { color: #ffffff; }"
         "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #00ff88; "
         "        transition: all 200ms ease; }"
@@ -793,9 +835,9 @@ static void activate(GtkApplication *app, gpointer user_data)
         /* Style the scrollbar */
         "scrollbar { background-color: #1e2429; }"
         "scrollbar slider { background-color: #00ff88; border-radius: 4px; min-width: 8px; min-height: 8px; "
-        "                  transition: background-color 200ms ease, transform 150ms ease; }"
-        "scrollbar slider:hover { background-color: #33ffaa; transform: scaleX(1.2); }"
-        "scrollbar slider:active { background-color: #00cc66; transform: scaleX(1.3); }"
+        "                  transition: background-color 200ms ease; }"
+        "scrollbar slider:hover { background-color: #33ffaa; }"
+        "scrollbar slider:active { background-color: #00cc66; }"
         "scrollbar trough { background-color: #2a323a; border-radius: 4px; }",
         -1, NULL);
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
@@ -804,7 +846,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     // Show all widgets
     gtk_widget_show_all(window);
     
-    // Animate window opening with fade and scale
+    // Animate window opening with simple fade
     gtk_widget_set_opacity(window, 0.0);
     Animation *open_anim = g_new0(Animation, 1);
     open_anim->widget = window;
@@ -812,7 +854,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     open_anim->target_opacity = 1.0;
     open_anim->duration = 400;
     open_anim->start_time = g_get_monotonic_time() / 1000;
-    open_anim->easing = ANIM_EASE_OUT_ELASTIC;
+    open_anim->easing = ANIM_EASE_OUT_QUAD;  // Simple fade
     open_anim->active = TRUE;
     gtk_widget_add_tick_callback(window, on_animation_tick, open_anim, g_free);
 }
