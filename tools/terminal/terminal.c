@@ -9,6 +9,7 @@
 typedef struct {
     GtkWidget *window;
     GtkWidget *notebook;
+    GtkWidget *title_bar;
 
     // For dragging and resizing
     int is_dragging;
@@ -94,15 +95,25 @@ static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpoin
         term->drag_start_y = event->y_root;
         return TRUE;
     } else if (term->is_dragging) {
-        int dx = event->x_root - term->drag_start_x;
-        int dy = event->y_root - term->drag_start_y;
+        // Only drag from title bar
+        GtkAllocation title_alloc;
+        gtk_widget_get_allocation(term->title_bar, &title_alloc);
+        
+        int title_x, title_y;
+        gtk_widget_translate_coordinates(term->title_bar, term->window, 0, 0, &title_x, &title_y);
+        
+        int rel_y = event->y - title_y;
+        if (rel_y >= 0 && rel_y <= title_alloc.height) {
+            int dx = event->x_root - term->drag_start_x;
+            int dy = event->y_root - term->drag_start_y;
 
-        int x, y;
-        gtk_window_get_position(GTK_WINDOW(term->window), &x, &y);
-        gtk_window_move(GTK_WINDOW(term->window), x + dx, y + dy);
+            int x, y;
+            gtk_window_get_position(GTK_WINDOW(term->window), &x, &y);
+            gtk_window_move(GTK_WINDOW(term->window), x + dx, y + dy);
 
-        term->drag_start_x = event->x_root;
-        term->drag_start_y = event->y_root;
+            term->drag_start_x = event->x_root;
+            term->drag_start_y = event->y_root;
+        }
         return TRUE;
     }
     return FALSE;
@@ -153,13 +164,14 @@ static void on_close_clicked(GtkButton *button, gpointer window)
     gtk_window_close(GTK_WINDOW(window));
 }
 
-// CSS 
+// CSS with visible borders
 static void apply_css(void) {
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
-        "window { background-color: #0b0f14; color: #ffffff; }\n"
+        "window { background-color: #0b0f14; color: #ffffff; "
+        "         border: 2px solid #00ff88; }"  // Added visible border around window
         "notebook { background-color: #0b0f14; }\n"
-        "notebook tab { background-color: #1e2429; color: #ffffff; }\n"
+        "notebook tab { background-color: #1e2429; color: #ffffff; padding: 2px 5px; }\n"
         "notebook tab:checked { background-color: #00ff88; color: #0b0f14; }\n"
         "notebook tab button { padding: 0; min-width: 20px; min-height: 20px; }\n"
         "#title-bar { background-color: #0b0f14; border-bottom: 2px solid #00ff88; }\n"
@@ -173,12 +185,17 @@ static void apply_css(void) {
         -1, NULL);
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
 }
 
 // Spawn callback
 static void spawn_callback(VteTerminal *terminal, GPid pid, GError *error, gpointer user_data) 
 
 {
+    (void)terminal;
+    (void)pid;
+    (void)user_data;
+    
     if (error) {
         g_warning("Failed to spawn shell: %s", error->message);
         g_error_free(error);
@@ -192,12 +209,14 @@ static void close_tab_callback(GtkButton *button, gpointer data)
     GtkWidget *tab = g_object_get_data(G_OBJECT(button), "tab");
     Terminal *term = (Terminal *)data;
     if (tab) {
-        gtk_notebook_remove_page(GTK_NOTEBOOK(term->notebook),
-            gtk_notebook_page_num(GTK_NOTEBOOK(term->notebook), tab));
+        int page_num = gtk_notebook_page_num(GTK_NOTEBOOK(term->notebook), tab);
+        if (page_num != -1) {
+            gtk_notebook_remove_page(GTK_NOTEBOOK(term->notebook), page_num);
+        }
     }
 }
 
-// Create a new terminal tab - FIXED: Added scrolled window
+// Create a new terminal tab
 static void new_terminal_tab(const char *initial_directory, Terminal *term) 
 
 {
@@ -206,6 +225,11 @@ static void new_terminal_tab(const char *initial_directory, Terminal *term)
 
     // Set basic options
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vte), 10000);
+
+    // Set colors to match theme
+    GdkRGBA foreground = {0.0, 1.0, 0.53, 1.0}; // #00ff88
+    GdkRGBA background = {0.04, 0.06, 0.08, 1.0}; // #0b0f14
+    vte_terminal_set_colors(VTE_TERMINAL(vte), &foreground, &background, NULL, 0);
 
     // Spawn the shell
     const char *shell = vte_get_user_shell();
@@ -228,8 +252,8 @@ static void new_terminal_tab(const char *initial_directory, Terminal *term)
     // Create scrolled window for the terminal
     scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
-                                   GTK_POLICY_AUTOMATIC,  // Horizontal scrollbar
-                                   GTK_POLICY_AUTOMATIC); // Vertical scrollbar
+                                   GTK_POLICY_AUTOMATIC,
+                                   GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(scrolled_window), vte);
     gtk_widget_show(vte);
 
@@ -239,6 +263,7 @@ static void new_terminal_tab(const char *initial_directory, Terminal *term)
     GtkWidget *close_btn = gtk_button_new_from_icon_name("window-close", GTK_ICON_SIZE_MENU);
     gtk_button_set_relief(GTK_BUTTON(close_btn), GTK_RELIEF_NONE);
     gtk_widget_set_tooltip_text(close_btn, "Close tab");
+    gtk_widget_set_size_request(close_btn, 20, 20);
 
     gtk_box_pack_start(GTK_BOX(tab_label_box), tab_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(tab_label_box), close_btn, FALSE, FALSE, 0);
@@ -258,7 +283,7 @@ static void new_terminal_tab(const char *initial_directory, Terminal *term)
 static void activate(GtkApplication *app, gpointer user_data)
 
 {
-    Terminal *term = g_new(Terminal, 1);
+    Terminal *term = g_new0(Terminal, 1);
     term->is_dragging = 0;
     term->is_resizing = 0;
     term->resize_edge = RESIZE_NONE;
@@ -277,12 +302,16 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_window_set_title(GTK_WINDOW(main_window), "Terminal");
     gtk_window_set_default_size(GTK_WINDOW(main_window), 800, 600);
     gtk_window_set_position(GTK_WINDOW(main_window), GTK_WIN_POS_CENTER);
-    gtk_window_set_decorated(GTK_WINDOW(main_window), TRUE);
+    
+    // Set undecorated to allow custom resize handling
+    gtk_window_set_decorated(GTK_WINDOW(main_window), FALSE);
 
-    // Enable dragging
+    // Enable events for dragging and resizing on the WINDOW itself
     gtk_widget_add_events(main_window, GDK_BUTTON_PRESS_MASK |
                                        GDK_BUTTON_RELEASE_MASK |
-                                       GDK_POINTER_MOTION_MASK);
+                                       GDK_POINTER_MOTION_MASK |
+                                       GDK_ENTER_NOTIFY_MASK |
+                                       GDK_LEAVE_NOTIFY_MASK);
     g_signal_connect(main_window, "button-press-event", G_CALLBACK(on_button_press), term);
     g_signal_connect(main_window, "button-release-event", G_CALLBACK(on_button_release), term);
     g_signal_connect(main_window, "motion-notify-event", G_CALLBACK(on_motion_notify), term);
@@ -298,6 +327,7 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_name(title_bar, "title-bar");
     gtk_widget_set_size_request(title_bar, -1, 30);
     gtk_box_pack_start(GTK_BOX(vbox), title_bar, FALSE, FALSE, 0);
+    term->title_bar = title_bar; // Store for drag detection
 
     title_label = gtk_label_new("Terminal");
     gtk_label_set_xalign(GTK_LABEL(title_label), 0.0);
