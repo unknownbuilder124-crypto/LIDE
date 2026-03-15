@@ -40,9 +40,9 @@ all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-b
 blackline-wm: wm/wm.c
 	$(CC) $(CFLAGS) -o $@ $< $(X11_LIBS)
 
-# Panel
-blackline-panel: panel/panel.c tools/minimized_container.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ panel/panel.c tools/minimized_container.c $(GTK_LIBS) -lX11
+# Panel with system stats - updated to use network_stats.c
+blackline-panel: panel/panel.c tools/minimized_container.c panel/network_stats.c
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ panel/panel.c tools/minimized_container.c $(GTK_LIBS) $(X11_LIBS)
 
 # Launcher
 blackline-launcher: launcher/launcher.c
@@ -50,7 +50,7 @@ blackline-launcher: launcher/launcher.c
 
 # Tools Container with Animation
 blackline-tools: tools/tools_container.c tools/viewMode.c tools/animation.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c tools/animation.c $(GTK_LIBS) -lX11 -lm
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c tools/animation.c $(GTK_LIBS) $(X11_LIBS) $(MATH_LIBS)
 
 # Background
 blackline-background: tools/background.c
@@ -66,7 +66,7 @@ blackline-editor: tools/text_editor/editor.c tools/text_editor/edit.c
 
 # Calculator
 blackline-calculator: tools/calculator/calculator.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/calculator/calculator.c $(GTK_LIBS) -lm
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/calculator/calculator.c $(GTK_LIBS) $(MATH_LIBS)
 
 # System Monitor
 blackline-system-monitor: tools/system-monitor/monitor.o tools/system-monitor/cpu.o \
@@ -91,6 +91,10 @@ tools/viewMode.o: tools/viewMode.c tools/viewMode.h
 
 # Animation
 tools/animation.o: tools/animation.c tools/animation.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
+
+# Panel network stats module - new unified network stats file
+panel/network_stats.o: panel/network_stats.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 # Terminal - only build if VTE is available
@@ -178,7 +182,7 @@ clean:
 	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
 	      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
 	      voidfox $(FIREFOX_WRAPPER) blackline-terminal
-	rm -f *.o tools/*.o tools/system-monitor/*.o tools/web-browser/*.o tools/terminal/*.o
+	rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o tools/terminal/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 
 # Install all binaries
@@ -278,7 +282,7 @@ help:
 	@echo "Available targets:"
 	@echo "  all                    - Build all components"
 	@echo "  blackline-wm           - Build window manager"
-	@echo "  blackline-panel        - Build panel"
+	@echo "  blackline-panel        - Build panel with system stats (CPU, RAM, Network)"
 	@echo "  blackline-launcher      - Build application launcher"
 	@echo "  blackline-tools         - Build tools container with view mode"
 	@echo "  blackline-background    - Build background setter"
@@ -304,6 +308,13 @@ help:
 	@echo "  run-voidfox             - Run VoidFox web browser"
 	@echo "  run-firefox             - Run Firefox wrapper"
 	@echo "  run-terminal            - Run terminal emulator"
+	@echo ""
+	@echo "Panel Features:"
+	@echo "  - CPU usage with smoothing"
+	@echo "  - RAM usage percentage"
+	@echo "  - Upload/Download speeds (auto KB/s, MB/s, GB/s)"
+	@echo "  - Date and time display"
+	@echo "  - Minimized apps container"
 	@echo ""
 	@echo "View Mode:"
 	@echo "  The tools container now supports List/Grid view toggle"
