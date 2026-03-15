@@ -487,7 +487,7 @@ static gboolean on_window_state_changed(GtkWidget *window, GdkEventWindowState *
 static ToolItem tools[] = {
     {"File Manager", "📁", launch_file_manager, launch_file_manager_event, NULL},
     {"Text Editor", "📝", launch_text_editor, launch_text_editor_event, NULL},
-    {"Terminal", ">_", launch_terminal, launch_terminal_event, NULL},
+    {"Terminal", "$", launch_terminal, launch_terminal_event, NULL},
     {"Calculator", "🧮", launch_calculator, launch_calculator_event, NULL},
     {"System Monitor", "📊", launch_system_monitor, launch_system_monitor_event, NULL},
     {"VoidFox", "🌐", launch_web_browser, launch_web_browser_event, NULL},
