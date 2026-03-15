@@ -3,6 +3,7 @@ CFLAGS = -Wall -O2 -g -I. -Iinclude -Itools
 GTK_CFLAGS = $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS = $(shell pkg-config --libs gtk+-3.0)
 X11_LIBS = -lX11
+MATH_LIBS = -lm
 
 # VTE detection for terminal
 VTE_PKG := $(shell pkg-config --exists vte-2.91 && echo vte-2.91)
@@ -47,9 +48,9 @@ blackline-panel: panel/panel.c tools/minimized_container.c
 blackline-launcher: launcher/launcher.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $< $(GTK_LIBS)
 
-# Tools Container
-blackline-tools: tools/tools_container.c tools/viewMode.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c $(GTK_LIBS) -lX11
+# Tools Container with Animation
+blackline-tools: tools/tools_container.c tools/viewMode.c tools/animation.c
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c tools/animation.c $(GTK_LIBS) -lX11 -lm
 
 # Background
 blackline-background: tools/background.c
@@ -86,6 +87,10 @@ tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-
 
 # View Mode
 tools/viewMode.o: tools/viewMode.c tools/viewMode.h
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
+
+# Animation
+tools/animation.o: tools/animation.c tools/animation.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 # Terminal - only build if VTE is available
@@ -303,6 +308,12 @@ help:
 	@echo "View Mode:"
 	@echo "  The tools container now supports List/Grid view toggle"
 	@echo "  View preference is saved in ~/.config/blackline/tools_view_mode.conf"
+	@echo ""
+	@echo "Animations:"
+	@echo "  Window opening/closing animations"
+	@echo "  Button press feedback animations"
+	@echo "  View toggle with fade transitions"
+	@echo "  Smooth window resizing"
 
 .PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor \
         run-voidfox run-firefox run-terminal check-webkit check-firefox check-vte help
