@@ -151,18 +151,21 @@ static void activate(GtkApplication *app, gpointer user_data)
     g_signal_connect(fm->window, "button-release-event", G_CALLBACK(on_button_release), fm);
     g_signal_connect(fm->window, "motion-notify-event", G_CALLBACK(on_motion_notify), fm);
 
-    // Apply CSS for black background and red accents
+    // Apply CSS for professional dark theme with blue accents
     GtkCssProvider *provider = gtk_css_provider_new();
 
     gtk_css_provider_load_from_data(provider,
-        "window { background-color: #000000; color: #ffffff; }\n"
-        "treeview { background-color: #1a1a1a; color: #ffffff; }\n"
-        "treeview:selected { background-color: #ff3333; color: #ffffff; }\n"
-        "entry { background-color: #1a1a1a; color: #ffffff; border: 1px solid #ff3333; }\n"
-        "button { background-color: #1a1a1a; color: #ff3333; border: 1px solid #ff3333; }\n"
-        "button:hover { background-color: #333333; }\n"
-        "statusbar { background-color: #1a1a1a; color: #ffffff; border-top: 1px solid #ff3333; }\n"
-        "scrolledwindow { border: 1px solid #ff3333; }\n",
+        "window { background-color: #1e1e1e; color: #e0e0e0; }\n"
+        "treeview { background-color: #252525; color: #e0e0e0; }\n"
+        "treeview:selected { background-color: #0d6efd; color: #ffffff; }\n"
+        "treeview:selected:focus { background-color: #0b5ed7; }\n"
+        "entry { background-color: #2d2d2d; color: #e0e0e0; border: 1px solid #404040; }\n"
+        "entry:focus { border-color: #0d6efd; }\n"
+        "button { background-color: #2d2d2d; color: #e0e0e0; border: 1px solid #404040; }\n"
+        "button:hover { background-color: #3d3d3d; border-color: #0d6efd; }\n"
+        "button:active { background-color: #1e1e1e; }\n"
+        "statusbar { background-color: #1a1a1a; color: #e0e0e0; border-top: 1px solid #404040; }\n"
+        "scrolledwindow { border: 1px solid #404040; }\n",
         -1, NULL);
 
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
