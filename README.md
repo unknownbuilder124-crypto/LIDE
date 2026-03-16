@@ -398,6 +398,8 @@ sudo zypper install \
     gnome-system-monitor \
     firefox
 
+sudo apt-get install libimlib2-dev
+
 # Verify installations
 echo "Verifying critical components..."
 
