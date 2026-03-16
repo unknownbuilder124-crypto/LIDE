@@ -314,13 +314,13 @@ static void activate(GtkApplication *app, gpointer user_data) {
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
         "window { background-color: #000000; color: #ffffff; }"
-        "#title-bar { background-color: #000000; border-bottom: 2px solid #ff3333; }"
-        "frame { border-color: #ff3333; color: #ffffff; }"
-        "frame > label { color: #ff3333; }"
+        "#title-bar { background-color: #000000; border-bottom: 2px solid #86559a; }"
+        "frame { border-color: #86559a; color: #ffffff; }"
+        "frame > label { color: #86559a; }"
         "treeview { background-color: #1a1a1a; color: #ffffff; }"
-        "treeview:selected { background-color: #ff3333; color: #000000; }"
-        "treeview.view { border-color: #ff3333; }"
-        "button { background-color: #1a1a1a; color: #ff3333; border: 1px solid #ff3333; }"
+        "treeview:selected { background-color: #86559a; color: #000000; }"
+        "treeview.view { border-color: #86559a; }"
+        "button { background-color: #1a1a1a; color: #86559a; border: 1px solid #86559a; }"
         "button:hover { background-color: #333333; }"
         "label { color: #ffffff; }"
         , -1, NULL);
