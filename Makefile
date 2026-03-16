@@ -40,7 +40,7 @@ all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-b
 blackline-wm: wm/wm.c
 	$(CC) $(CFLAGS) -o $@ $< $(X11_LIBS)
 
-# Panel with system stats - updated to use network_stats.c
+# Panel with system stats - using network_stats.c
 blackline-panel: panel/panel.c tools/minimized_container.c panel/network_stats.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ panel/panel.c tools/minimized_container.c $(GTK_LIBS) $(X11_LIBS)
 
@@ -48,9 +48,9 @@ blackline-panel: panel/panel.c tools/minimized_container.c panel/network_stats.c
 blackline-launcher: launcher/launcher.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $< $(GTK_LIBS)
 
-# Tools Container with Animation
-blackline-tools: tools/tools_container.c tools/viewMode.c tools/animation.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c tools/animation.c $(GTK_LIBS) $(X11_LIBS) $(MATH_LIBS)
+# Tools Container - NO ANIMATIONS (removed animation.c dependency)
+blackline-tools: tools/tools_container.c tools/viewMode.c
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ tools/tools_container.c tools/viewMode.c $(GTK_LIBS) $(X11_LIBS) $(MATH_LIBS)
 
 # Background
 blackline-background: tools/background.c
@@ -89,11 +89,7 @@ tools/system-monitor/processes.o: tools/system-monitor/processes.c tools/system-
 tools/viewMode.o: tools/viewMode.c tools/viewMode.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
-# Animation
-tools/animation.o: tools/animation.c tools/animation.h
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
-
-# Panel network stats module - new unified network stats file
+# Panel network stats module
 panel/network_stats.o: panel/network_stats.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
@@ -317,14 +313,8 @@ help:
 	@echo "  - Minimized apps container"
 	@echo ""
 	@echo "View Mode:"
-	@echo "  The tools container now supports List/Grid view toggle"
+	@echo "  The tools container supports List/Grid view toggle"
 	@echo "  View preference is saved in ~/.config/blackline/tools_view_mode.conf"
-	@echo ""
-	@echo "Animations:"
-	@echo "  Window opening/closing animations"
-	@echo "  Button press feedback animations"
-	@echo "  View toggle with fade transitions"
-	@echo "  Smooth window resizing"
 
 .PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor \
         run-voidfox run-firefox run-terminal check-webkit check-firefox check-vte help
