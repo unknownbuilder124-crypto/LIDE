@@ -526,12 +526,6 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_size_request(view_btn, 60, 25);
     gtk_box_pack_end(GTK_BOX(hbox), view_btn, FALSE, FALSE, 0);
     
-    // Minimize button
-    GtkWidget *min_btn = gtk_button_new_with_label("─");
-    gtk_widget_set_size_request(min_btn, 30, 25);
-    g_signal_connect(min_btn, "clicked", G_CALLBACK(on_minimize_clicked), window);
-    gtk_box_pack_end(GTK_BOX(hbox), min_btn, FALSE, FALSE, 0);
-    
     GtkWidget *close_btn = gtk_button_new_with_label("X");
     gtk_widget_set_size_request(close_btn, 30, 25);
     g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), window);
