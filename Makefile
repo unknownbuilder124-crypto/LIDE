@@ -29,8 +29,24 @@ else
     WEBKIT_LIBS = $(shell pkg-config --libs $(WEBKIT_PKG))
 endif
 
+# NetworkManager detection
+NM_PKG := $(shell pkg-config --exists libnm && echo libnm)
+ifneq ($(NM_PKG),)
+    NM_CFLAGS = $(shell pkg-config --cflags libnm)
+    NM_LIBS = $(shell pkg-config --libs libnm)
+    HAVE_NM = yes
+else
+    $(warning "libnm not found, network manager will use nmcli commands")
+    NM_CFLAGS = 
+    NM_LIBS = 
+    HAVE_NM = no
+endif
+
 # Firefox wrapper build
 FIREFOX_WRAPPER = tools/firefox/firefox-wrapper
+
+# Network stats header file
+NETWORK_STATS_H = panel/network_stats.h
 
 # Base targets
 all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
@@ -41,9 +57,9 @@ all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-b
 blackline-wm: wm/wm.c
 	$(CC) $(CFLAGS) -o $@ $< $(X11_LIBS) $(IMLIB2_LIBS)
 
-# Panel with system stats - using network_stats.c
-blackline-panel: panel/panel.c tools/minimized_container.c panel/network_stats.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ panel/panel.c tools/minimized_container.c $(GTK_LIBS) $(X11_LIBS)
+# Panel with system stats - using network_stats.c and network_manager.c
+blackline-panel: panel/panel.c tools/minimized_container.c panel/network_stats.c panel/network_manager.c
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(NM_CFLAGS) -o $@ $^ $(GTK_LIBS) $(X11_LIBS) $(NM_LIBS)
 
 # Launcher
 blackline-launcher: launcher/launcher.c
@@ -91,8 +107,12 @@ tools/viewMode.o: tools/viewMode.c tools/viewMode.h
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
 # Panel network stats module
-panel/network_stats.o: panel/network_stats.c
+panel/network_stats.o: panel/network_stats.c $(NETWORK_STATS_H)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
+
+# Panel network manager module
+panel/network_manager.o: panel/network_manager.c
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(NM_CFLAGS) -c $< -o $@
 
 # Terminal - only build if VTE is available
 ifeq ($(HAVE_VTE),yes)
@@ -174,6 +194,24 @@ firefox-wrapper: $(FIREFOX_WRAPPER).c
 %.o: %.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
 
+# Create network_stats.h if it doesn't exist
+$(NETWORK_STATS_H):
+	@echo "Creating network_stats.h..."
+	@mkdir -p panel
+	@echo '#ifndef NETWORK_STATS_H' > $@
+	@echo '#define NETWORK_STATS_H' >> $@
+	@echo '' >> $@
+	@echo 'void network_stats_init(void);' >> $@
+	@echo 'void network_stats_update(void);' >> $@
+	@echo 'void network_stats_cleanup(void);' >> $@
+	@echo 'double network_stats_get_upload(void);' >> $@
+	@echo 'double network_stats_get_download(void);' >> $@
+	@echo '' >> $@
+	@echo '#endif' >> $@
+
+# Ensure network_stats.h exists before building panel
+blackline-panel: $(NETWORK_STATS_H)
+
 # Clean
 clean:
 	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
@@ -181,6 +219,11 @@ clean:
 	      voidfox $(FIREFOX_WRAPPER) blackline-terminal
 	rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o tools/terminal/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
+
+# Clean all (including object files)
+distclean: clean
+	rm -f $(NETWORK_STATS_H)
+	@echo "Removed generated header files"
 
 # Install all binaries
 install: all
@@ -196,6 +239,7 @@ install: all
 	sudo cp voidfox /usr/local/bin/
 	sudo cp $(FIREFOX_WRAPPER) /usr/local/bin/lide-firefox
 	-test -f blackline-terminal && sudo cp blackline-terminal /usr/local/bin/
+	@echo "Installation complete!"
 
 # Uninstall all binaries
 uninstall:
@@ -212,6 +256,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/lide-firefox
 	sudo rm -f /usr/local/bin/blackline-terminal
 	rm -f ~/.config/blackline/tools_view_mode.conf
+	@echo "Uninstallation complete!"
 
 # Run commands
 run-editor: blackline-editor
@@ -285,6 +330,21 @@ check-imlib2:
 		echo "  On Arch: sudo pacman -S imlib2"; \
 	fi
 
+# NetworkManager check
+check-network:
+	@echo "Checking NetworkManager installation..."
+	@if pkg-config --exists libnm; then \
+		echo "✓ NetworkManager found: $$(pkg-config --modversion libnm)"; \
+	else \
+		echo "✗ NetworkManager not found!"; \
+		echo "  Install with: sudo apt install libnm-dev"; \
+	fi
+
+# Check all dependencies
+check-all: check-webkit check-firefox check-vte check-imlib2 check-network
+	@echo ""
+	@echo "All dependency checks complete!"
+
 # Help
 help:
 	@echo "Blackline Desktop Environment - Makefile"
@@ -304,12 +364,15 @@ help:
 	@echo "  voidfox                - Build VoidFox web browser"
 	@echo "  firefox-wrapper        - Build Firefox wrapper"
 	@echo "  clean                  - Remove all binaries and object files"
+	@echo "  distclean              - Remove all binaries, objects, and generated headers"
 	@echo "  install                - Install all binaries to /usr/local/bin"
 	@echo "  uninstall              - Remove all binaries from /usr/local/bin"
 	@echo "  check-webkit           - Check WebKitGTK installation"
 	@echo "  check-firefox          - Check Firefox installation"
 	@echo "  check-vte              - Check VTE installation"
 	@echo "  check-imlib2           - Check Imlib2 installation"
+	@echo "  check-network          - Check NetworkManager installation"
+	@echo "  check-all              - Check all dependencies"
 	@echo ""
 	@echo "Run targets:"
 	@echo "  run-editor             - Run text editor"
@@ -325,18 +388,21 @@ help:
 	@echo "  - RAM usage percentage"
 	@echo "  - Upload/Download speeds (auto KB/s, MB/s, GB/s)"
 	@echo "  - Date and time display"
+	@echo "  - WiFi network scanning and connection"
 	@echo "  - Minimized apps container"
 	@echo ""
 	@echo "Window Manager Features:"
 	@echo "  - Imlib2 wallpaper support (PNG, JPEG, GIF)"
 	@echo "  - Desktop icons from ~/Desktop"
-	@echo "  - Right-click context menu"
+	@echo "  - Right-click context menu with icons"
 	@echo "  - Window dragging and resizing"
 	@echo "  - Maximize/unmaximize support"
+	@echo "  - Movable desktop tools (launchers)"
 	@echo ""
 	@echo "View Mode:"
 	@echo "  The tools container supports List/Grid view toggle"
 	@echo "  View preference is saved in ~/.config/blackline/tools_view_mode.conf"
 
-.PHONY: all clean install uninstall run-editor run-wm run-calculator run-system-monitor \
-        run-voidfox run-firefox run-terminal check-webkit check-firefox check-vte check-imlib2 help
+.PHONY: all clean distclean install uninstall run-editor run-wm run-calculator run-system-monitor \
+        run-voidfox run-firefox run-terminal check-webkit check-firefox check-vte check-imlib2 \
+        check-network check-all help
