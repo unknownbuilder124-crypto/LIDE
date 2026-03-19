@@ -48,10 +48,14 @@ FIREFOX_WRAPPER = tools/firefox/firefox-wrapper
 # Network stats header file
 NETWORK_STATS_H = panel/network_stats.h
 
+# Image Viewer source and target
+IMAGE_VIEWER_SOURCES = tools/image-viewer/image-viewer.c
+IMAGE_VIEWER_TARGET = blackline-image-viewer
+
 # Base targets
 all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
-     voidfox firefox-wrapper blackline-terminal
+     voidfox firefox-wrapper blackline-terminal $(IMAGE_VIEWER_TARGET)
 
 # Window Manager with Imlib2 support
 blackline-wm: wm/wm.c
@@ -133,6 +137,10 @@ SYSMON_HEADERS = tools/system-monitor/monitor.h
 blackline-system-monitor: $(SYSMON_SOURCES) $(SYSMON_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SYSMON_SOURCES) $(GTK_LIBS)
 
+# Image Viewer
+$(IMAGE_VIEWER_TARGET): $(IMAGE_VIEWER_SOURCES)
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(IMAGE_VIEWER_SOURCES) $(GTK_LIBS)
+
 # Terminal - only build if VTE is available
 ifeq ($(HAVE_VTE),yes)
 TERMINAL_SOURCES = tools/terminal/terminal.c
@@ -211,9 +219,9 @@ blackline-panel: $(NETWORK_STATS_H)
 clean:
 	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
 	      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
-	      voidfox $(FIREFOX_WRAPPER) blackline-terminal blackline-session
+	      voidfox $(FIREFOX_WRAPPER) blackline-terminal blackline-session $(IMAGE_VIEWER_TARGET)
 	rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o \
-	      tools/terminal/*.o launcher/*.o session/*.o
+	      tools/terminal/*.o launcher/*.o session/*.o tools/image-viewer/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
 
@@ -234,6 +242,7 @@ install: all
 	sudo cp blackline-editor /usr/local/bin/
 	sudo cp blackline-calculator /usr/local/bin/
 	sudo cp blackline-system-monitor /usr/local/bin/
+	sudo cp $(IMAGE_VIEWER_TARGET) /usr/local/bin/
 	sudo cp voidfox /usr/local/bin/
 	sudo cp $(FIREFOX_WRAPPER) /usr/local/bin/lide-firefox
 	-test -f blackline-terminal && sudo cp blackline-terminal /usr/local/bin/
@@ -251,6 +260,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/blackline-editor
 	sudo rm -f /usr/local/bin/blackline-calculator
 	sudo rm -f /usr/local/bin/blackline-system-monitor
+	sudo rm -f /usr/local/bin/$(IMAGE_VIEWER_TARGET)
 	sudo rm -f /usr/local/bin/voidfox
 	sudo rm -f /usr/local/bin/lide-firefox
 	sudo rm -f /usr/local/bin/blackline-terminal
@@ -291,6 +301,9 @@ run-tools: blackline-tools
 
 run-fm: blackline-fm
 	./blackline-fm
+
+run-image-viewer: $(IMAGE_VIEWER_TARGET)
+	./$(IMAGE_VIEWER_TARGET) $(ARGS)
 
 run-session: blackline-session
 	./blackline-session
@@ -376,6 +389,7 @@ help:
 	@echo "  blackline-terminal     - Build terminal emulator"
 	@echo "  blackline-calculator   - Build calculator"
 	@echo "  blackline-system-monitor - Build system monitor (CPU, Memory, Processes)"
+	@echo "  blackline-image-viewer - Build image viewer with crop, rotate, flip features"
 	@echo "  blackline-session      - Build session manager"
 	@echo "  voidfox                - Build VoidFox web browser"
 	@echo "  firefox-wrapper        - Build Firefox wrapper"
@@ -402,6 +416,7 @@ help:
 	@echo "  run-launcher           - Run launcher (for testing)"
 	@echo "  run-tools              - Run tools container (for testing)"
 	@echo "  run-fm                 - Run file manager (for testing)"
+	@echo "  run-image-viewer       - Run image viewer (use ARGS=filename.jpg to open a file)"
 	@echo "  run-session            - Run session manager (for testing)"
 	@echo ""
 	@echo "Panel Features:"
@@ -426,6 +441,17 @@ help:
 	@echo "  - Layout management"
 	@echo "  - Debug mode support"
 	@echo ""
+	@echo "Image Viewer Features:"
+	@echo "  - Open any image format supported by GTK"
+	@echo "  - Crop (drag to select area)"
+	@echo "  - Rotate left/right (90°)"
+	@echo "  - Flip horizontal/vertical"
+	@echo "  - Zoom in/out"
+	@echo "  - Fit to window / Actual size"
+	@echo "  - Save / Save As with format selection"
+	@echo "  - Revert to original"
+	@echo "  - Modern header bar with toolbar"
+	@echo ""
 	@echo "VoidFox Web Browser Features:"
 	@echo "  - Tabbed browsing"
 	@echo "  - Bookmarks manager"
@@ -441,5 +467,5 @@ help:
 	@echo "  View preference is saved in ~/.config/blackline/tools_view_mode.conf"
 
 .PHONY: all clean distclean install uninstall run-editor run-wm run-calculator run-system-monitor \
-        run-voidfox run-firefox run-terminal run-panel run-launcher run-tools run-fm run-session \
+        run-voidfox run-firefox run-terminal run-panel run-launcher run-tools run-fm run-image-viewer run-session \
         check-webkit check-firefox check-vte check-imlib2 check-network check-all help

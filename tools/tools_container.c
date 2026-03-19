@@ -328,6 +328,43 @@ static gboolean launch_terminal_event(GtkWidget *widget, GdkEventButton *event, 
     return TRUE;
 }
 
+// Add this launch function after the other launch functions
+static void launch_image_viewer(GtkButton *button, gpointer window) 
+
+{
+    (void)button;
+    (void)window;
+    
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Launch image viewer
+        execl("./blackline-image-viewer", "blackline-image-viewer", NULL);
+        exit(0);
+    } else if (pid > 0) {
+        // Parent process - close tools window
+        close_tools_window();
+    }
+}
+
+static gboolean launch_image_viewer_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
+
+{
+    (void)widget;
+    (void)event;
+    (void)window;
+    
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Launch image viewer
+        execl("./blackline-image-viewer", "blackline-image-viewer", NULL);
+        exit(0);
+    } else if (pid > 0) {
+        // Parent process - close tools window
+        close_tools_window();
+    }
+    return TRUE;
+}
+
 // Minimize button handler - simple minimize
 static void on_minimize_clicked(GtkButton *button, gpointer window) 
 {
@@ -343,20 +380,24 @@ static gboolean on_window_state_changed(GtkWidget *window, GdkEventWindowState *
 }
 
 // Tool definitions for view mode
+// Tool definitions for view mode
 static ToolItem tools[] = {
     {"File Manager", "📁", launch_file_manager, launch_file_manager_event, NULL},
     {"Text Editor", "📝", launch_text_editor, launch_text_editor_event, NULL},
     {"Terminal", "$", launch_terminal, launch_terminal_event, NULL},
     {"Calculator", "🧮", launch_calculator, launch_calculator_event, NULL},
     {"System Monitor", "📊", launch_system_monitor, launch_system_monitor_event, NULL},
+    {"Image Viewer", "🖼️", launch_image_viewer, launch_image_viewer_event, NULL},  // New tool
     {"VoidFox", "🌐", launch_web_browser, launch_web_browser_event, NULL},
     {"Firefox", "🦊", launch_firefox_wrapper, launch_firefox_wrapper_event, NULL}
 };
 
-static int num_tools = sizeof(tools) / sizeof(tools[0]);
+static int num_tools = sizeof(tools) / sizeof(tools[0]);  // KEEP ONLY THIS ONE
+
+// REMOVE THIS DUPLICATE LINE:
+// static int num_tools = sizeof(tools) / sizeof(tools[0]);
 
 static void on_close_clicked(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     gtk_window_close(GTK_WINDOW(window));

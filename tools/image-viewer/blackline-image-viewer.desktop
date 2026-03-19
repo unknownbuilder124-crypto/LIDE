@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BlackLine Image Viewer
+Comment=View and edit images
+Exec=blackline-image-viewer %f
+Icon=image-x-generic
+MimeType=image/bmp;image/gif;image/jpeg;image/jpg;image/png;image/tiff;image/webp;image/x-bmp;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-xbitmap;image/x-xpixmap;
+Categories=Graphics;Viewer;
+StartupNotify=true
+Keywords=image;viewer;photo;picture;crop;rotate;flip
