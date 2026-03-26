@@ -109,9 +109,9 @@ LAUNCHER_HEADERS = launcher/launcher.h
 blackline-launcher: $(LAUNCHER_SOURCES) $(LAUNCHER_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(LAUNCHER_SOURCES) $(GTK_LIBS)
 
-# Tools Container - NO ANIMATIONS
-TOOLS_SOURCES = tools/tools_container.c tools/viewMode.c
-TOOLS_HEADERS = tools/viewMode.h tools/minimized_container.h
+# Tools Container - includes window_resize.c for drag/resize functionality
+TOOLS_SOURCES = tools/tools_container.c tools/viewMode.c tools/window_resize.c
+TOOLS_HEADERS = tools/viewMode.h tools/minimized_container.h tools/window_resize.h
 
 blackline-tools: $(TOOLS_SOURCES) $(TOOLS_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(TOOLS_SOURCES) $(GTK_LIBS) $(X11_LIBS) $(MATH_LIBS)
@@ -120,33 +120,34 @@ blackline-tools: $(TOOLS_SOURCES) $(TOOLS_HEADERS)
 blackline-background: tools/background.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-# File Manager
-FM_SOURCES = tools/file-manager/fm.c tools/file-manager/browser.c tools/image-viewer/image-viewer-launcher.c
-FM_HEADERS = tools/file-manager/fm.h tools/image-viewer/image-viewer.h
+# File Manager - includes window_resize.c for drag/resize functionality
+FM_SOURCES = tools/file-manager/fm.c tools/file-manager/browser.c tools/image-viewer/image-viewer-launcher.c tools/window_resize.c
+FM_HEADERS = tools/file-manager/fm.h tools/image-viewer/image-viewer.h tools/window_resize.h
 
 blackline-fm: $(FM_SOURCES) $(FM_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(FM_SOURCES) $(GTK_LIBS)
 
-# Text Editor
-EDITOR_SOURCES = tools/text_editor/editor.c tools/text_editor/edit.c
-EDITOR_HEADERS = tools/text_editor/edit.h tools/text_editor/text_editor.h
+# Text Editor - includes window_resize.c for drag/resize functionality
+EDITOR_SOURCES = tools/text_editor/editor.c tools/text_editor/edit.c tools/window_resize.c
+EDITOR_HEADERS = tools/text_editor/edit.h tools/text_editor/text_editor.h tools/window_resize.h
 
 blackline-editor: $(EDITOR_SOURCES) $(EDITOR_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(EDITOR_SOURCES) $(GTK_LIBS)
 
-# Calculator
-CALCULATOR_SOURCES = tools/calculator/calculator.c
-CALCULATOR_HEADERS = tools/calculator/calculator.h
+# Calculator - includes window_resize.c for drag/resize functionality
+CALCULATOR_SOURCES = tools/calculator/calculator.c tools/window_resize.c
+CALCULATOR_HEADERS = tools/calculator/calculator.h tools/window_resize.h
 
 blackline-calculator: $(CALCULATOR_SOURCES) $(CALCULATOR_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(CALCULATOR_SOURCES) $(GTK_LIBS) $(MATH_LIBS)
 
-# System Monitor
+# System Monitor - includes window_resize.c for drag/resize functionality
 SYSMON_SOURCES = tools/system-monitor/monitor.c \
                  tools/system-monitor/cpu.c \
                  tools/system-monitor/memory.c \
-                 tools/system-monitor/processes.c
-SYSMON_HEADERS = tools/system-monitor/monitor.h
+                 tools/system-monitor/processes.c \
+                 tools/window_resize.c
+SYSMON_HEADERS = tools/system-monitor/monitor.h tools/window_resize.h
 
 blackline-system-monitor: $(SYSMON_SOURCES) $(SYSMON_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SYSMON_SOURCES) $(GTK_LIBS)
@@ -161,9 +162,9 @@ $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS)
 	@echo "Built Settings tool with Display tab"
 
-# Terminal - only build if VTE is available
+# Terminal
 ifeq ($(HAVE_VTE),yes)
-TERMINAL_SOURCES = tools/terminal/terminal.c
+TERMINAL_SOURCES = tools/terminal/terminal.c tools/window_resize.c
 
 blackline-terminal: $(TERMINAL_SOURCES)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(VTE_CFLAGS) -o $@ $(TERMINAL_SOURCES) $(GTK_LIBS) $(VTE_LIBS)
@@ -172,7 +173,7 @@ blackline-terminal:
 	@echo "Skipping terminal build (vte-2.91 not found)"
 endif
 
-# VoidFox Web Browser
+# VoidFox Web Browser - includes window_resize.c for drag/resize functionality
 BROWSER_SOURCES = tools/web-browser/voidfox.c \
                   tools/web-browser/browser.c \
                   tools/web-browser/tab.c \
@@ -183,7 +184,8 @@ BROWSER_SOURCES = tools/web-browser/voidfox.c \
                   tools/web-browser/passwords.c \
                   tools/web-browser/extensions.c \
                   tools/web-browser/download-stats.c \
-                  tools/web-browser/settings.c
+                  tools/web-browser/settings.c \
+                  tools/window_resize.c
 
 BROWSER_HEADERS = tools/web-browser/voidfox.h \
                   tools/web-browser/app_menu.h \
@@ -194,7 +196,8 @@ BROWSER_HEADERS = tools/web-browser/voidfox.h \
                   tools/web-browser/extensions.h \
                   tools/web-browser/download-stats.h \
                   tools/web-browser/settings.h \
-                  tools/web-browser/tab.h
+                  tools/web-browser/tab.h \
+                  tools/window_resize.h
 
 voidfox: $(BROWSER_SOURCES) $(BROWSER_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(WEBKIT_CFLAGS) -o $@ $(BROWSER_SOURCES) $(GTK_LIBS) $(WEBKIT_LIBS)

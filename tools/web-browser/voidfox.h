@@ -5,6 +5,17 @@
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
 
+/* Resize edge constants - must match window_resize.h */
+#define RESIZE_NONE 0
+#define RESIZE_LEFT 1
+#define RESIZE_RIGHT 2
+#define RESIZE_TOP 4
+#define RESIZE_BOTTOM 8
+#define RESIZE_TOP_LEFT 5
+#define RESIZE_TOP_RIGHT 6
+#define RESIZE_BOTTOM_LEFT 9
+#define RESIZE_BOTTOM_RIGHT 10
+
 /**
  * BrowserWindow structure.
  * Encapsulates all UI components and state for the main browser window.
@@ -164,7 +175,7 @@ void on_title_changed(WebKitWebView *web_view, GParamSpec *pspec, BrowserTab *ta
  * @param button  The close button that was clicked.
  * @param browser BrowserWindow instance.
  */
-void on_close_tab_clicked(GtkButton *button, BrowserWindow *browser);
+gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser);
 
 /**
  * Permission request handler for WebView.
@@ -218,16 +229,5 @@ void update_resize_cursor(GtkWidget *widget, int resize_edge);
  * @param height   Current window height.
  */
 void apply_window_resize(GtkWindow *window, int edge, int delta_x, int delta_y, int width, int height);
-
-/* Resize edge constants */
-#define RESIZE_NONE 0
-#define RESIZE_TOP 1
-#define RESIZE_BOTTOM 2
-#define RESIZE_LEFT 3
-#define RESIZE_RIGHT 4
-#define RESIZE_TOP_LEFT 5
-#define RESIZE_TOP_RIGHT 6
-#define RESIZE_BOTTOM_LEFT 7
-#define RESIZE_BOTTOM_RIGHT 8
 
 #endif /* VOIDFOX_H */

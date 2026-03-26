@@ -13,7 +13,7 @@ GList *downloads = NULL;
 BrowserWindow *global_browser = NULL;
 
 /* Forward declarations for static functions */
-static void on_close_tab_clicked(GtkButton *button, BrowserWindow *browser);
+//gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser);
 static void open_download_folder(GtkButton *button, DownloadItem *item);
 static void remove_download(DownloadItem *item);
 static void clear_completed_downloads(GtkButton *button, BrowserWindow *browser);
@@ -200,24 +200,6 @@ static void remove_download(DownloadItem *item)
     save_downloads();
 }
 
-/**
- * Callback for tab close button.
- * Removes the specified tab from the notebook.
- *
- * @param button  The close button that was clicked.
- * @param browser BrowserWindow instance.
- */
-static void on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
-
-{
-    GtkWidget *tab_child = g_object_get_data(G_OBJECT(button), "tab-child");
-    if (tab_child) {
-        int page_num = gtk_notebook_page_num(GTK_NOTEBOOK(browser->notebook), tab_child);
-        if (page_num != -1) {
-            gtk_notebook_remove_page(GTK_NOTEBOOK(browser->notebook), page_num);
-        }
-    }
-}
 
 /**
  * Clears completed and failed downloads from the list.

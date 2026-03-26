@@ -109,24 +109,6 @@ static void on_manage_bookmarks_clicked(GtkMenuItem *item, BrowserWindow *browse
 }
 
 /**
- * Callback for tab close button.
- * Removes the associated tab from the notebook.
- *
- * @param button  The close button that was clicked.
- * @param browser BrowserWindow instance.
- */
-static void on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
-{
-    GtkWidget *tab_child = g_object_get_data(G_OBJECT(button), "tab-child");
-    if (tab_child) {
-        int page_num = gtk_notebook_page_num(GTK_NOTEBOOK(browser->notebook), tab_child);
-        if (page_num != -1) {
-            gtk_notebook_remove_page(GTK_NOTEBOOK(browser->notebook), page_num);
-        }
-    }
-}
-
-/**
  * Creates the bookmarks menu.
  * Includes "Add Bookmark", "Manage Bookmarks", and a list of saved bookmarks.
  *

@@ -49,52 +49,10 @@ typedef struct {
 /* Forward declarations */
 static void open_image(AppState *state, const char *filename);
 static void save_image(AppState *state, const char *filename);
-static void save_as_dialog(AppState *state);
 static void update_image(AppState *state);
 static void clear_selection(AppState *state);
-static void crop_image(AppState *state);
-static void rotate_image(AppState *state, int angle);
-static void flip_image(AppState *state, gboolean horizontal);
-static void zoom_in(AppState *state);
-static void zoom_out(AppState *state);
-static void zoom_fit(AppState *state);
-static void zoom_actual(AppState *state);
-static void revert_to_original(AppState *state);
 static void update_statusbar(AppState *state);
 static void custom_file_dialog(GtkWidget *parent, DialogMode mode, AppState *state);
-
-/* UI callbacks */
-static void on_open_activate(GtkMenuItem *item, AppState *state);
-static void on_save_activate(GtkMenuItem *item, AppState *state);
-static void on_save_as_activate(GtkMenuItem *item, AppState *state);
-static void on_quit_activate(GtkMenuItem *item, AppState *state);
-static void on_crop_activate(GtkMenuItem *item, AppState *state);
-static void on_rotate_left_activate(GtkMenuItem *item, AppState *state);
-static void on_rotate_right_activate(GtkMenuItem *item, AppState *state);
-static void on_flip_h_activate(GtkMenuItem *item, AppState *state);
-static void on_flip_v_activate(GtkMenuItem *item, AppState *state);
-static void on_zoom_in_activate(GtkMenuItem *item, AppState *state);
-static void on_zoom_out_activate(GtkMenuItem *item, AppState *state);
-static void on_zoom_fit_activate(GtkMenuItem *item, AppState *state);
-static void on_zoom_actual_activate(GtkMenuItem *item, AppState *state);
-static void on_undo_activate(GtkMenuItem *item, AppState *state);
-static void on_open_button_clicked(GtkButton *button, AppState *state);
-static void on_save_button_clicked(GtkButton *button, AppState *state);
-
-/* File dialog callbacks */
-static void on_listbox_row_activated(GtkListBox *listbox, GtkListBoxRow *row, gpointer dialog);
-static void on_open_clicked(GtkButton *button, gpointer dialog);
-static void on_save_clicked(GtkButton *button, gpointer dialog);
-static void on_up_clicked(GtkButton *button, gpointer dialog);
-static void on_home_clicked(GtkButton *button, gpointer dialog);
-static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer user_data);
-
-/* Mouse event handlers for crop selection */
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, AppState *state);
-static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, AppState *state);
-static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, AppState *state);
-static gboolean on_draw_selection(GtkWidget *widget, cairo_t *cr, AppState *state);
-static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppState *state);
 
 /* ----------------------------------------------------------------------
  * Helper: update status bar with image information
@@ -306,28 +264,26 @@ static void flip_image(AppState *state, gboolean horizontal) {
 }
 
 /* ----------------------------------------------------------------------
- * Zoom functions (placeholder - not fully implemented)
+ * Zoom functions
  * ---------------------------------------------------------------------- */
 static void zoom_in(AppState *state) {
-    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(state->window),
-                                               GTK_DIALOG_MODAL,
-                                               GTK_MESSAGE_INFO,
-                                               GTK_BUTTONS_OK,
-                                               "Zoom feature coming soon!");
-    gtk_dialog_run(GTK_DIALOG(dialog));
-    gtk_widget_destroy(dialog);
+    state->zoom_factor *= 1.2;
+    update_image(state);
 }
 
 static void zoom_out(AppState *state) {
-    zoom_in(state); /* Same message */
+    state->zoom_factor /= 1.2;
+    update_image(state);
 }
 
 static void zoom_fit(AppState *state) {
+    state->zoom_factor = 1.0;
     update_image(state);
 }
 
 static void zoom_actual(AppState *state) {
-    zoom_fit(state); /* For now, same as fit */
+    state->zoom_factor = 1.0;
+    update_image(state);
 }
 
 /* ----------------------------------------------------------------------
@@ -395,6 +351,7 @@ static void open_image(AppState *state, const char *filename) {
     g_free(dir);
     
     state->is_modified = FALSE;
+    state->zoom_factor = 1.0;
     clear_selection(state);
 
     /* Update window title */
@@ -476,12 +433,337 @@ static void save_image(AppState *state, const char *filename) {
 /* ----------------------------------------------------------------------
  * Custom file dialog implementation
  * ---------------------------------------------------------------------- */
-/* [File dialog functions - the remaining large block would be commented similarly,
-   but to keep the response manageable, I'll note that these functions would get
-   detailed comments explaining the directory listing, navigation, and file selection
-   logic. The existing code already has good inline comments from the original.] */
+static char *current_folder_dialog = NULL;
 
-/* ... remaining file dialog functions would be commented similarly ... */
+static void on_up_clicked(GtkButton *button, gpointer dialog) {
+    (void)button;
+    char *parent = g_path_get_dirname(current_folder_dialog);
+    if (g_strcmp0(parent, current_folder_dialog) != 0) {
+        g_free(current_folder_dialog);
+        current_folder_dialog = parent;
+        GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+        AppState *state = g_object_get_data(G_OBJECT(parent_win), "app-state");
+        gtk_widget_destroy(GTK_WIDGET(dialog));
+        custom_file_dialog(GTK_WIDGET(parent_win), DIALOG_MODE_OPEN, state);
+    } else {
+        g_free(parent);
+    }
+}
+
+static void on_home_clicked(GtkButton *button, gpointer dialog) {
+    (void)button;
+    const gchar *home = g_get_home_dir();
+    g_free(current_folder_dialog);
+    current_folder_dialog = g_strdup(home);
+    GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+    AppState *state = g_object_get_data(G_OBJECT(parent_win), "app-state");
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+    custom_file_dialog(GTK_WIDGET(parent_win), DIALOG_MODE_OPEN, state);
+}
+
+static void on_listbox_row_activated(GtkListBox *listbox, GtkListBoxRow *row, gpointer dialog) {
+    (void)listbox;
+    GtkWidget *row_widget = GTK_WIDGET(row);
+    GtkWidget *label = gtk_bin_get_child(GTK_BIN(row_widget));
+    const char *filename = gtk_label_get_text(GTK_LABEL(label));
+    
+    if (strncmp(filename, "[DIR] ", 6) == 0) {
+        filename = filename + 6;
+        char *new_path = g_build_filename(current_folder_dialog, filename, NULL);
+        g_free(current_folder_dialog);
+        current_folder_dialog = new_path;
+        GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+        AppState *state = g_object_get_data(G_OBJECT(parent_win), "app-state");
+        gtk_widget_destroy(GTK_WIDGET(dialog));
+        custom_file_dialog(GTK_WIDGET(parent_win), DIALOG_MODE_OPEN, state);
+    }
+}
+
+static void on_open_clicked(GtkButton *button, gpointer dialog) {
+    (void)button;
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    char *filename = NULL;
+    
+    GList *children = gtk_container_get_children(GTK_CONTAINER(content));
+    for (GList *c = children; c; c = c->next) {
+        if (GTK_IS_BOX(c->data)) {
+            GList *box_children = gtk_container_get_children(GTK_CONTAINER(c->data));
+            for (GList *bc = box_children; bc; bc = bc->next) {
+                if (GTK_IS_BOX(bc->data)) {
+                    GList *name_box_children = gtk_container_get_children(GTK_CONTAINER(bc->data));
+                    for (GList *nc = name_box_children; nc; nc = nc->next) {
+                        if (GTK_IS_ENTRY(nc->data)) {
+                            filename = g_strdup(gtk_entry_get_text(GTK_ENTRY(nc->data)));
+                        }
+                    }
+                    g_list_free(name_box_children);
+                }
+            }
+            g_list_free(box_children);
+        }
+    }
+    g_list_free(children);
+    
+    if (filename && strlen(filename) > 0) {
+        char *fullpath = g_build_filename(current_folder_dialog, filename, NULL);
+        GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+        AppState *state = g_object_get_data(G_OBJECT(parent_win), "app-state");
+        open_image(state, fullpath);
+        g_free(fullpath);
+        g_free(filename);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+static void on_save_clicked(GtkButton *button, gpointer dialog) {
+    (void)button;
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    char *filename = NULL;
+    
+    GList *children = gtk_container_get_children(GTK_CONTAINER(content));
+    for (GList *c = children; c; c = c->next) {
+        if (GTK_IS_BOX(c->data)) {
+            GList *box_children = gtk_container_get_children(GTK_CONTAINER(c->data));
+            for (GList *bc = box_children; bc; bc = bc->next) {
+                if (GTK_IS_BOX(bc->data)) {
+                    GList *name_box_children = gtk_container_get_children(GTK_CONTAINER(bc->data));
+                    for (GList *nc = name_box_children; nc; nc = nc->next) {
+                        if (GTK_IS_ENTRY(nc->data)) {
+                            filename = g_strdup(gtk_entry_get_text(GTK_ENTRY(nc->data)));
+                        }
+                    }
+                    g_list_free(name_box_children);
+                }
+            }
+            g_list_free(box_children);
+        }
+    }
+    g_list_free(children);
+    
+    if (filename && strlen(filename) > 0) {
+        char *fullpath = g_build_filename(current_folder_dialog, filename, NULL);
+        GtkWindow *parent_win = gtk_window_get_transient_for(GTK_WINDOW(dialog));
+        AppState *state = g_object_get_data(G_OBJECT(parent_win), "app-state");
+        save_image(state, fullpath);
+        g_free(fullpath);
+        g_free(filename);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+static void on_dialog_response(GtkDialog *dialog, gint response_id, gpointer user_data) {
+    (void)user_data;
+    if (response_id == GTK_RESPONSE_DELETE_EVENT) {
+        gtk_widget_destroy(GTK_WIDGET(dialog));
+    }
+}
+
+static void custom_file_dialog(GtkWidget *parent, DialogMode mode, AppState *state) {
+    GtkWidget *dialog;
+    GtkWidget *content;
+    GtkWidget *vbox;
+    GtkWidget *scrolled;
+    GtkWidget *listbox;
+    GtkWidget *button_box;
+    GtkWidget *cancel_btn;
+    GtkWidget *action_btn;
+    GtkWidget *entry;
+    GtkWidget *path_box;
+    GtkWidget *up_btn;
+    GtkWidget *home_btn;
+    GtkWidget *path_label;
+    
+    const gchar *home = g_get_home_dir();
+    if (!current_folder_dialog) {
+        current_folder_dialog = g_strdup(state->current_folder ? state->current_folder : home);
+    }
+    
+    dialog = gtk_dialog_new();
+    if (mode == DIALOG_MODE_OPEN) {
+        gtk_window_set_title(GTK_WINDOW(dialog), "Open Image");
+    } else {
+        gtk_window_set_title(GTK_WINDOW(dialog), "Save Image");
+    }
+    
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent));
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 450, 400);
+    gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ON_PARENT);
+    
+    content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    gtk_box_pack_start(GTK_BOX(content), vbox, TRUE, TRUE, 0);
+    
+    path_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_start(GTK_BOX(vbox), path_box, FALSE, FALSE, 0);
+    
+    up_btn = gtk_button_new_with_label("↑");
+    gtk_widget_set_size_request(up_btn, 30, 25);
+    g_signal_connect(up_btn, "clicked", G_CALLBACK(on_up_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(path_box), up_btn, FALSE, FALSE, 0);
+    
+    home_btn = gtk_button_new_with_label("🏠");
+    gtk_widget_set_size_request(home_btn, 30, 25);
+    g_signal_connect(home_btn, "clicked", G_CALLBACK(on_home_clicked), dialog);
+    gtk_box_pack_start(GTK_BOX(path_box), home_btn, FALSE, FALSE, 0);
+    
+    path_label = gtk_label_new(current_folder_dialog);
+    gtk_label_set_ellipsize(GTK_LABEL(path_label), PANGO_ELLIPSIZE_START);
+    gtk_box_pack_start(GTK_BOX(path_box), path_label, TRUE, TRUE, 5);
+    
+    scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_size_request(scrolled, -1, 250);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
+    
+    listbox = gtk_list_box_new();
+    gtk_container_add(GTK_CONTAINER(scrolled), listbox);
+    
+    DIR *dir = opendir(current_folder_dialog);
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') continue;
+            
+            char *fullpath = g_build_filename(current_folder_dialog, entry->d_name, NULL);
+            struct stat st;
+            if (stat(fullpath, &st) == 0) {
+                GtkWidget *row = gtk_list_box_row_new();
+                char *display_name;
+                if (S_ISDIR(st.st_mode)) {
+                    display_name = g_strdup_printf("[DIR] %s", entry->d_name);
+                } else {
+                    display_name = g_strdup(entry->d_name);
+                }
+                GtkWidget *label = gtk_label_new(display_name);
+                gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+                gtk_container_add(GTK_CONTAINER(row), label);
+                g_free(display_name);
+                gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+            }
+            g_free(fullpath);
+        }
+        closedir(dir);
+    }
+    
+    GtkWidget *name_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), name_box, FALSE, FALSE, 0);
+    
+    GtkWidget *name_label = gtk_label_new("Name:");
+    gtk_box_pack_start(GTK_BOX(name_box), name_label, FALSE, FALSE, 0);
+    
+    entry = gtk_entry_new();
+    gtk_box_pack_start(GTK_BOX(name_box), entry, TRUE, TRUE, 0);
+    
+    if (mode == DIALOG_MODE_SAVE && state->current_filename) {
+        char *basename = g_path_get_basename(state->current_filename);
+        gtk_entry_set_text(GTK_ENTRY(entry), basename);
+        g_free(basename);
+    } else if (mode == DIALOG_MODE_SAVE) {
+        gtk_entry_set_text(GTK_ENTRY(entry), "untitled.png");
+    }
+    
+    button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), button_box, FALSE, FALSE, 0);
+    
+    cancel_btn = gtk_button_new_with_label("Cancel");
+    g_signal_connect_swapped(cancel_btn, "clicked", G_CALLBACK(gtk_widget_destroy), dialog);
+    gtk_box_pack_start(GTK_BOX(button_box), cancel_btn, TRUE, TRUE, 0);
+    
+    if (mode == DIALOG_MODE_OPEN) {
+        action_btn = gtk_button_new_with_label("Open");
+        g_signal_connect(action_btn, "clicked", G_CALLBACK(on_open_clicked), dialog);
+    } else {
+        action_btn = gtk_button_new_with_label("Save");
+        g_signal_connect(action_btn, "clicked", G_CALLBACK(on_save_clicked), dialog);
+    }
+    gtk_box_pack_start(GTK_BOX(button_box), action_btn, TRUE, TRUE, 0);
+    
+    g_signal_connect(listbox, "row-activated", G_CALLBACK(on_listbox_row_activated), dialog);
+    g_signal_connect(dialog, "response", G_CALLBACK(on_dialog_response), NULL);
+    
+    gtk_widget_show_all(dialog);
+}
+
+/* ----------------------------------------------------------------------
+ * Menu callbacks
+ * ---------------------------------------------------------------------- */
+static void on_open_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    custom_file_dialog(state->window, DIALOG_MODE_OPEN, state);
+}
+
+static void on_save_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    if (state->current_filename) {
+        save_image(state, state->current_filename);
+    } else {
+        custom_file_dialog(state->window, DIALOG_MODE_SAVE, state);
+    }
+}
+
+static void on_save_as_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    custom_file_dialog(state->window, DIALOG_MODE_SAVE, state);
+}
+
+static void on_quit_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    gtk_window_close(GTK_WINDOW(state->window));
+}
+
+static void on_crop_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    crop_image(state);
+}
+
+static void on_rotate_left_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    rotate_image(state, 270);
+}
+
+static void on_rotate_right_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    rotate_image(state, 90);
+}
+
+static void on_flip_h_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    flip_image(state, TRUE);
+}
+
+static void on_flip_v_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    flip_image(state, FALSE);
+}
+
+static void on_zoom_in_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    zoom_in(state);
+}
+
+static void on_zoom_out_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    zoom_out(state);
+}
+
+static void on_zoom_fit_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    zoom_fit(state);
+}
+
+static void on_zoom_actual_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    zoom_actual(state);
+}
+
+static void on_undo_activate(GtkMenuItem *item, AppState *state) {
+    (void)item;
+    revert_to_original(state);
+}
 
 /* ----------------------------------------------------------------------
  * Button click handlers
@@ -528,14 +810,12 @@ static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, AppSta
         
         int disp_w = gdk_pixbuf_get_width(display);
         int disp_h = gdk_pixbuf_get_height(display);
-        int off_x = (alloc.width - disp_w) / 2;  /* Horizontal offset for centered image */
-        int off_y = (alloc.height - disp_h) / 2; /* Vertical offset for centered image */
+        int off_x = (alloc.width - disp_w) / 2;
+        int off_y = (alloc.height - disp_h) / 2;
         
-        /* Check if click is inside image area */
         if (x < off_x || x >= off_x + disp_w || y < off_y || y >= off_y + disp_h)
             return FALSE;
         
-        /* Convert display coordinates to image pixel coordinates */
         int img_w = gdk_pixbuf_get_width(state->current_pixbuf);
         int img_h = gdk_pixbuf_get_height(state->current_pixbuf);
         double scale_x = (double)img_w / disp_w;
@@ -568,7 +848,7 @@ static gboolean on_button_release(GtkWidget *widget, GdkEventButton *event, AppS
         double dx = state->select_end_x - state->select_start_x;
         double dy = state->select_end_y - state->select_start_y;
         if (dx * dx < 4 && dy * dy < 4) {
-            clear_selection(state); /* Single click - clear selection */
+            clear_selection(state);
         } else {
             gtk_widget_queue_draw(state->selection_area);
         }
@@ -602,7 +882,6 @@ static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, AppSt
     int off_x = (alloc.width - disp_w) / 2;
     int off_y = (alloc.height - disp_h) / 2;
     
-    /* Clamp to image area */
     if (x < off_x) x = off_x;
     if (x >= off_x + disp_w) x = off_x + disp_w - 1;
     if (y < off_y) y = off_y;
@@ -643,7 +922,6 @@ static gboolean on_draw_selection(GtkWidget *widget, cairo_t *cr, AppState *stat
     int off_x = (alloc.width - disp_w) / 2;
     int off_y = (alloc.height - disp_h) / 2;
 
-    /* Convert image pixel coordinates back to display coordinates */
     int img_w = gdk_pixbuf_get_width(state->current_pixbuf);
     int img_h = gdk_pixbuf_get_height(state->current_pixbuf);
     double scale_x = (double)disp_w / img_w;
@@ -654,11 +932,9 @@ static gboolean on_draw_selection(GtkWidget *widget, cairo_t *cr, AppState *stat
     double x2 = off_x + state->select_end_x * scale_x;
     double y2 = off_y + state->select_end_y * scale_y;
 
-    /* Ensure ordered coordinates for rectangle drawing */
     if (x1 > x2) { double tmp = x1; x1 = x2; x2 = tmp; }
     if (y1 > y2) { double tmp = y1; y1 = y2; y2 = tmp; }
 
-    /* Draw dashed green rectangle */
     cairo_set_source_rgba(cr, 0.0, 1.0, 0.0, 0.8);
     cairo_set_line_width(cr, 2.0);
     double dashes[] = {4.0, 4.0};
@@ -716,6 +992,7 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppState *st
 static void activate(GtkApplication *app, gpointer user_data) {
     (void)user_data;
     AppState *state = g_new0(AppState, 1);
+    state->zoom_factor = 1.0;
     state->window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(state->window), "BlackLine Image Viewer");
     gtk_window_set_default_size(GTK_WINDOW(state->window), 800, 600);
@@ -860,7 +1137,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     state->selection_area = gtk_drawing_area_new();
     gtk_overlay_add_overlay(GTK_OVERLAY(state->overlay), state->selection_area);
     g_signal_connect(state->selection_area, "draw", G_CALLBACK(on_draw_selection), state);
-    gtk_widget_set_events(state->selection_area, 0); /* Let events pass through */
+    gtk_widget_set_events(state->selection_area, 0);
 
     /* Status bar */
     state->statusbar = gtk_statusbar_new();
@@ -916,7 +1193,6 @@ static void on_open(GtkApplication *app, GFile **files, gint n_files, const gcha
     
     if (n_files <= 0) return;
     
-    /* Get or create an active window */
     GtkWindow *window = gtk_application_get_active_window(app);
     if (!window) {
         g_signal_emit_by_name(app, "activate");
@@ -925,7 +1201,6 @@ static void on_open(GtkApplication *app, GFile **files, gint n_files, const gcha
     
     if (!window) return;
     
-    /* Open the first file */
     AppState *state = (AppState *)g_object_get_data(G_OBJECT(window), "app-state");
     if (!state) return;
     

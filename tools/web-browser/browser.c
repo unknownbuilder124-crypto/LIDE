@@ -11,6 +11,9 @@
 #include <unistd.h> // for readlink, access
 #include <stdlib.h> // for realpath
 
+static void on_close_clicked(GtkButton *button, gpointer window);
+
+
 /* Define PATH_MAX if not defined (for systems that don't have it) */
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -32,7 +35,7 @@
  * @return Pointer to static string containing the absolute path.
  *         Valid until next call to this function.
  */
-static char* get_home_page_path(void)
+char* get_home_page_path(void)
 
 {
     static char path[PATH_MAX];
@@ -469,7 +472,7 @@ static void on_tab_switched(GtkNotebook *notebook, GtkWidget *page, guint page_n
  * @param event    Load event type.
  * @param browser  BrowserWindow instance.
  */
-static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent event, BrowserWindow *browser) 
+void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent event, BrowserWindow *browser) 
 
 {
     if (!browser || !browser->notebook) return;
@@ -508,7 +511,7 @@ static void on_load_changed(WebKitWebView *web_view, WebKitLoadEvent event, Brow
  * @param pspec    GParamSpec for the changed property (unused).
  * @param tab      BrowserTab instance.
  */
-static void on_title_changed(WebKitWebView *web_view, GParamSpec *pspec, BrowserTab *tab) 
+void on_title_changed(WebKitWebView *web_view, GParamSpec *pspec, BrowserTab *tab) 
 
 {
     if (!tab || !tab->tab_label) return;
@@ -530,7 +533,7 @@ static void on_title_changed(WebKitWebView *web_view, GParamSpec *pspec, Browser
  * @param browser BrowserWindow instance.
  * @return        TRUE to stop event propagation.
  */
-static gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
+gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
 
 {
     GtkWidget *tab_child = g_object_get_data(G_OBJECT(button), "tab-child");
@@ -551,7 +554,7 @@ static gboolean on_close_tab_clicked(GtkButton *button, BrowserWindow *browser)
  * @param browser  BrowserWindow instance.
  * @return         TRUE to indicate the request was handled.
  */
-static gboolean on_web_view_permission_request(WebKitWebView *web_view, WebKitPermissionRequest *request, BrowserWindow *browser) {
+gboolean on_web_view_permission_request(WebKitWebView *web_view, WebKitPermissionRequest *request, BrowserWindow *browser) {
     (void)web_view;
     (void)browser;
     
@@ -592,7 +595,7 @@ static gboolean on_web_view_permission_request(WebKitWebView *web_view, WebKitPe
  * @param browser  BrowserWindow instance.
  * @return         TRUE if handled, FALSE to let WebKit handle it.
  */
-static gboolean on_web_view_decide_policy(WebKitWebView *web_view, WebKitPolicyDecision *decision, WebKitPolicyDecisionType type, BrowserWindow *browser) {
+gboolean on_web_view_decide_policy(WebKitWebView *web_view, WebKitPolicyDecision *decision, WebKitPolicyDecisionType type, BrowserWindow *browser) {
     (void)browser;
     
     if (type == WEBKIT_POLICY_DECISION_TYPE_RESPONSE) {
@@ -799,7 +802,7 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     g_signal_connect(browser->window, "window-state-event", G_CALLBACK(on_window_state_changed), max_btn);
     gtk_box_pack_start(GTK_BOX(window_buttons), max_btn, FALSE, FALSE, 0);
 
-    /* Close button */
+    //* Close button */
     GtkWidget *close_btn = gtk_button_new_with_label("✕");
     gtk_widget_set_size_request(close_btn, 30, 25);
     g_signal_connect(close_btn, "clicked", G_CALLBACK(on_close_clicked), browser->window);
