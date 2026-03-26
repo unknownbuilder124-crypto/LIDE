@@ -89,7 +89,10 @@ install_debian() {
         make \
         gcc \
         g++ \
-        libc6-dev
+        libc6-dev \
+        autoconf \
+        automake \
+        libtool
 
     # X11 and window manager dependencies
     apt-get install -y \
@@ -107,7 +110,16 @@ install_debian() {
         libxss-dev \
         libxtst-dev \
         x11proto-core-dev \
-        x11proto-xinerama-dev
+        x11proto-xinerama-dev \
+        libxcb1-dev \
+        libxcb-util0-dev \
+        libxcb-icccm4-dev \
+        libxcb-keysyms1-dev \
+        libxcb-randr0-dev \
+        libxcb-shape0-dev \
+        libxcb-xinerama0-dev \
+        libxcb-xkb-dev \
+        libxcb-xrm-dev
 
     # GTK and GUI dependencies
     apt-get install -y \
@@ -121,7 +133,12 @@ install_debian() {
         libgdk-pixbuf-2.0-dev \
         libharfbuzz-dev \
         libfontconfig1-dev \
-        libfreetype6-dev
+        libfreetype6-dev \
+        libepoxy-dev \
+        libwayland-dev \
+        libxkbcommon-dev \
+        libegl1-mesa-dev \
+        libgles2-mesa-dev
 
     # WebKit and browser dependencies
     apt-get install -y \
@@ -129,7 +146,9 @@ install_debian() {
         libwebkit2gtk-4.0-dev \
         libjavascriptcoregtk-4.1-dev \
         libsoup-3.0-dev \
-        libsoup2.4-dev
+        libsoup2.4-dev \
+        libgcrypt20-dev \
+        libsecret-1-dev
 
     # Image and graphics libraries
     apt-get install -y \
@@ -139,18 +158,31 @@ install_debian() {
         libtiff-dev \
         libgif-dev \
         libwebp-dev \
-        librsvg2-dev
+        librsvg2-dev \
+        libopenjp2-7-dev \
+        libjbig-dev \
+        liblzma-dev
 
     # Terminal dependencies
     apt-get install -y \
         libvte-2.91-dev \
-        libvte-2.91-gtk3-dev
+        libvte-2.91-gtk3-dev \
+        libpcre2-dev
 
     # System monitoring
     apt-get install -y \
         libgtop2-dev \
         liblmdb-dev \
-        libsystemd-dev
+        libsystemd-dev \
+        libprocps-dev \
+        libsensors-dev \
+        libudev-dev
+
+    # NetworkManager dependencies
+    apt-get install -y \
+        libnm-dev \
+        libnl-3-dev \
+        libnl-genl-3-dev
 
     # Utilities
     apt-get install -y \
@@ -161,7 +193,9 @@ install_debian() {
         xinit \
         xterm \
         xdotool \
-        wmctrl
+        wmctrl \
+        x11vnc \
+        xvfb
 
     # Additional tools
     apt-get install -y \
@@ -172,7 +206,10 @@ install_debian() {
         htop \
         cmake \
         meson \
-        ninja-build
+        ninja-build \
+        valgrind \
+        gdb \
+        strace
 
     print_success "Debian/Ubuntu/Kali dependencies installed"
 }
@@ -189,7 +226,10 @@ install_fedora() {
         cmake \
         git \
         pkgconfig \
-        kernel-devel
+        kernel-devel \
+        autoconf \
+        automake \
+        libtool
 
     # X11 and window manager dependencies
     dnf install -y \
@@ -205,7 +245,11 @@ install_fedora() {
         libXfixes-devel \
         libXrender-devel \
         libXScrnSaver-devel \
-        libXtst-devel
+        libXtst-devel \
+        libxcb-devel \
+        xcb-util-devel \
+        xcb-util-keysyms-devel \
+        xcb-util-wm-devel
 
     # GTK and GUI dependencies
     dnf install -y \
@@ -218,7 +262,10 @@ install_fedora() {
         atk-devel \
         harfbuzz-devel \
         fontconfig-devel \
-        freetype-devel
+        freetype-devel \
+        libepoxy-devel \
+        wayland-devel \
+        libxkbcommon-devel
 
     # WebKit and browser dependencies
     dnf install -y \
@@ -226,7 +273,9 @@ install_fedora() {
         webkit2gtk4.0-devel \
         javascriptcoregtk4.1-devel \
         libsoup3-devel \
-        libsoup-devel
+        libsoup-devel \
+        libgcrypt-devel \
+        libsecret-devel
 
     # Image and graphics libraries
     dnf install -y \
@@ -236,18 +285,28 @@ install_fedora() {
         libtiff-devel \
         giflib-devel \
         libwebp-devel \
-        librsvg2-devel
+        librsvg2-devel \
+        openjpeg2-devel
 
     # Terminal dependencies
     dnf install -y \
         vte291-devel \
-        vte-profile
+        vte-profile \
+        pcre2-devel
 
     # System monitoring
     dnf install -y \
         libgtop2-devel \
         lmdb-devel \
-        systemd-devel
+        systemd-devel \
+        procps-ng-devel \
+        lm_sensors-devel \
+        libudev-devel
+
+    # NetworkManager dependencies
+    dnf install -y \
+        NetworkManager-libnm-devel \
+        libnl3-devel
 
     # Utilities
     dnf install -y \
@@ -256,7 +315,9 @@ install_fedora() {
         xorg-x11-xinit \
         xterm \
         xdotool \
-        wmctrl
+        wmctrl \
+        x11vnc \
+        xorg-x11-server-Xvfb
 
     # Additional tools
     dnf install -y \
@@ -266,7 +327,10 @@ install_fedora() {
         vim \
         htop \
         meson \
-        ninja-build
+        ninja-build \
+        valgrind \
+        gdb \
+        strace
 
     print_success "Fedora dependencies installed"
 }
@@ -282,7 +346,10 @@ install_arch() {
         make \
         cmake \
         git \
-        pkg-config
+        pkg-config \
+        autoconf \
+        automake \
+        libtool
 
     # X11 and window manager dependencies
     pacman -S --noconfirm \
@@ -299,7 +366,11 @@ install_arch() {
         libxrender \
         libxss \
         libxtst \
-        xorgproto
+        xorgproto \
+        libxcb \
+        xcb-util \
+        xcb-util-keysyms \
+        xcb-util-wm
 
     # GTK and GUI dependencies
     pacman -S --noconfirm \
@@ -312,7 +383,10 @@ install_arch() {
         atk \
         harfbuzz \
         fontconfig \
-        freetype2
+        freetype2 \
+        libepoxy \
+        wayland \
+        libxkbcommon
 
     # WebKit and browser dependencies
     pacman -S --noconfirm \
@@ -320,7 +394,9 @@ install_arch() {
         webkit2gtk-4.1 \
         javascriptcoregtk \
         libsoup3 \
-        libsoup
+        libsoup \
+        libgcrypt \
+        libsecret
 
     # Image and graphics libraries
     pacman -S --noconfirm \
@@ -330,18 +406,29 @@ install_arch() {
         libtiff \
         giflib \
         libwebp \
-        librsvg
+        librsvg \
+        openjpeg2
 
     # Terminal dependencies
     pacman -S --noconfirm \
         vte3 \
-        vte-common
+        vte-common \
+        pcre2
 
     # System monitoring
     pacman -S --noconfirm \
         libgtop \
         lmdb \
-        systemd-libs
+        systemd-libs \
+        procps-ng \
+        lm_sensors \
+        libudev0-shim
+
+    # NetworkManager dependencies
+    pacman -S --noconfirm \
+        networkmanager \
+        libnm \
+        libnl
 
     # Utilities
     pacman -S --noconfirm \
@@ -350,7 +437,9 @@ install_arch() {
         xorg-xinit \
         xterm \
         xdotool \
-        wmctrl
+        wmctrl \
+        x11vnc \
+        xorg-server-xvfb
 
     # Additional tools
     pacman -S --noconfirm \
@@ -360,7 +449,10 @@ install_arch() {
         vim \
         htop \
         meson \
-        ninja
+        ninja \
+        valgrind \
+        gdb \
+        strace
 
     print_success "Arch Linux dependencies installed"
 }
@@ -382,6 +474,9 @@ install_macos() {
         make \
         cmake \
         git \
+        autoconf \
+        automake \
+        libtool \
         libx11 \
         gtk+3 \
         gtk+4 \
@@ -403,7 +498,9 @@ install_macos() {
         vim \
         htop \
         meson \
-        ninja
+        ninja \
+        valgrind \
+        gdb
 
     print_success "macOS dependencies installed (partial)"
 }
@@ -412,12 +509,14 @@ install_macos() {
 install_unknown() {
     print_error "Unknown operating system. Please install dependencies manually."
     print_status "Required packages:"
-    echo "  - X11 development libraries"
-    echo "  - GTK3/GTK4 development libraries"
-    echo "  - WebKit2GTK development libraries"
-    echo "  - Imlib2 development library"
-    echo "  - VTE terminal library"
-    echo "  - Build tools (gcc, make, cmake, pkg-config)"
+    echo "  - X11 development libraries (libx11-dev, libxft-dev, libxinerama-dev, etc.)"
+    echo "  - GTK3/GTK4 development libraries (libgtk-3-dev, libgtk-4-dev)"
+    echo "  - WebKit2GTK development libraries (libwebkit2gtk-4.1-dev)"
+    echo "  - Imlib2 development library (libimlib2-dev)"
+    echo "  - VTE terminal library (libvte-2.91-dev)"
+    echo "  - NetworkManager development (libnm-dev)"
+    echo "  - System monitoring (libgtop2-dev, libprocps-dev)"
+    echo "  - Build tools (gcc, make, cmake, pkg-config, autoconf, automake)"
     exit 1
 }
 
@@ -425,30 +524,51 @@ install_unknown() {
 verify_installations() {
     print_status "Verifying critical installations..."
     
-    local missing=0
-    
     # Check for critical headers/libraries
-    check_header() {
-        if ! pkg-config --exists "$1" 2>/dev/null; then
-            print_warning "Could not verify $1"
+    check_pkg() {
+        if pkg-config --exists "$1" 2>/dev/null; then
+            print_success "Found $1 ($(pkg-config --modversion "$1"))"
+            return 0
         else
-            print_success "Found $1"
+            print_warning "Could not verify $1"
+            return 1
         fi
     }
     
-    check_header "x11"
-    check_header "gtk+-3.0"
-    check_header "webkit2gtk-4.1"
-    check_header "glib-2.0"
-    check_header "cairo"
-    check_header "imlib2"
-    check_header "vte-2.91"
+    check_header() {
+        if [ -f "/usr/include/$1" ] || [ -f "/usr/local/include/$1" ]; then
+            print_success "Found $1"
+        else
+            print_warning "Could not verify $1"
+        fi
+    }
     
-    if [ $missing -eq 0 ]; then
-        print_success "All critical dependencies appear to be installed"
-    else
-        print_warning "Some dependencies may be missing. Check the output above."
-    fi
+    # Critical packages
+    check_pkg "x11"
+    check_pkg "gtk+-3.0"
+    check_pkg "webkit2gtk-4.1" || check_pkg "webkit2gtk-4.0"
+    check_pkg "glib-2.0"
+    check_pkg "cairo"
+    check_pkg "imlib2"
+    check_pkg "vte-2.91" || check_pkg "vte-2.90"
+    check_pkg "libnm" || print_warning "NetworkManager development library not found"
+    check_pkg "libgtop-2.0" || print_warning "libgtop not found"
+    
+    # Check for executables
+    check_cmd() {
+        if command -v "$1" &> /dev/null; then
+            print_success "Found $1"
+        else
+            print_warning "Could not find $1"
+        fi
+    }
+    
+    check_cmd "gcc"
+    check_cmd "make"
+    check_cmd "pkg-config"
+    check_cmd "cmake"
+    
+    print_success "Verification complete"
 }
 
 # Main installation function

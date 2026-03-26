@@ -27,32 +27,60 @@ echo "  Panel: $PANEL_PATH"
 echo "  Background: $BACKGROUND_PATH"
 
 # Get screen dimensions
-SCREEN_WIDTH=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d'x' -f1)
-SCREEN_HEIGHT=$(xdpyinfo | awk '/dimensions/{print $2}' | cut -d'x' -f2)
+SCREEN_WIDTH=$(xdpyinfo 2>/dev/null | awk '/dimensions/{print $2}' | cut -d'x' -f1)
+SCREEN_HEIGHT=$(xdpyinfo 2>/dev/null | awk '/dimensions/{print $2}' | cut -d'x' -f2)
+
+# Fallback if xdpyinfo fails
+if [ -z "$SCREEN_WIDTH" ] || [ -z "$SCREEN_HEIGHT" ]; then
+    SCREEN_WIDTH=1920
+    SCREEN_HEIGHT=1080
+fi
 
 # Use 90% of screen size
 WIDTH=$((SCREEN_WIDTH * 9 / 10))
 HEIGHT=$((SCREEN_HEIGHT * 9 / 10))
 
-# Try different display numbers
-DISPLAY_NUM=5
-MAX_ATTEMPTS=10
+# Ensure minimum size
+if [ $WIDTH -lt 800 ]; then WIDTH=800; fi
+if [ $HEIGHT -lt 600 ]; then HEIGHT=600; fi
 
-for ((i=5; i<=MAX_ATTEMPTS; i++)); do
-    DISPLAY_NUM=$i
-    if [ ! -e "/tmp/.X${DISPLAY_NUM}-lock" ]; then
-        break
+# Function to find available display
+find_available_display() {
+    for ((i=5; i<=20; i++)); do
+        if [ ! -e "/tmp/.X${i}-lock" ] && ! pgrep -f "Xephyr :${i}" > /dev/null; then
+            echo $i
+            return 0
+        fi
+    done
+    echo -1
+    return 1
+}
+
+# Find an available display
+DISPLAY_NUM=$(find_available_display)
+
+if [ "$DISPLAY_NUM" -eq -1 ]; then
+    echo "Error: No available display found (tried :5 through :20)"
+    echo "Cleaning up stale display locks..."
+    for i in {5..20}; do
+        sudo rm -f "/tmp/.X${i}-lock" 2>/dev/null
+        sudo rm -f "/tmp/.X11-unix/X${i}" 2>/dev/null
+    done
+    DISPLAY_NUM=$(find_available_display)
+    if [ "$DISPLAY_NUM" -eq -1 ]; then
+        echo "Still no display available. Exiting."
+        exit 1
     fi
-done
+fi
 
 echo "Using display :${DISPLAY_NUM}"
 
-# Clean up any leftover lock files
-sudo rm -f /tmp/.X${DISPLAY_NUM}-lock 2>/dev/null
-sudo rm -f /tmp/.X11-unix/X${DISPLAY_NUM} 2>/dev/null
+# Clean up any leftover lock files for this display
+sudo rm -f "/tmp/.X${DISPLAY_NUM}-lock" 2>/dev/null
+sudo rm -f "/tmp/.X11-unix/X${DISPLAY_NUM}" 2>/dev/null
 
 # Start Xephyr
-Xephyr :${DISPLAY_NUM} -screen ${WIDTH}x${HEIGHT} -ac &
+Xephyr :${DISPLAY_NUM} -screen ${WIDTH}x${HEIGHT} -ac -resizeable &
 XEPHYR_PID=$!
 sleep 3
 
@@ -68,13 +96,18 @@ export PATH=.:$PATH  # Add current directory to PATH for easy access to binaries
 
 # Verify X connection
 echo "Verifying X connection..."
-xdpyinfo > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "ERROR: Cannot connect to X server"
-    kill $XEPHYR_PID
-    exit 1
-fi
-echo "X server is responding"
+for i in {1..5}; do
+    if xdpyinfo > /dev/null 2>&1; then
+        echo "X server is responding"
+        break
+    fi
+    if [ $i -eq 5 ]; then
+        echo "ERROR: Cannot connect to X server"
+        kill $XEPHYR_PID
+        exit 1
+    fi
+    sleep 1
+done
 
 # Start window manager first (creates the container)
 echo "Starting window manager..."
@@ -93,16 +126,22 @@ echo "Starting background..."
 $BACKGROUND_PATH &
 BACKGROUND_PID=$!
 
-echo "BlackLine is running in ${WIDTH}x${HEIGHT} window on display :${DISPLAY_NUM}!"
-echo "Press Ctrl+Shift to release mouse/keyboard"
-echo "Just close the Xephyr window to exit"
-echo "Or press Ctrl+C in this terminal"
+echo ""
+echo "========================================="
+echo "  BlackLine is running in ${WIDTH}x${HEIGHT} window on display :${DISPLAY_NUM}!"
+echo "========================================="
+echo "  Press Ctrl+Shift to release mouse/keyboard"
+echo "  Just close the Xephyr window to exit"
+echo "  Or press Ctrl+C in this terminal"
+echo "========================================="
+echo ""
 
 # Wait for Xephyr to exit 
 wait $XEPHYR_PID
 
 # Cleanup
+echo "Shutting down BlackLine..."
 kill $BACKGROUND_PID $PANEL_PID $WM_PID 2>/dev/null
-sudo rm -f /tmp/.X${DISPLAY_NUM}-lock 2>/dev/null
-sudo rm -f /tmp/.X11-unix/X${DISPLAY_NUM} 2>/dev/null
+sudo rm -f "/tmp/.X${DISPLAY_NUM}-lock" 2>/dev/null
+sudo rm -f "/tmp/.X11-unix/X${DISPLAY_NUM}" 2>/dev/null
 echo "BlackLine stopped."
