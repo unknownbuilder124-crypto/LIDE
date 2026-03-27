@@ -6,29 +6,24 @@
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
-#include "viewMode.h"
+#include "auto.h"
 
-// Drag variables - commented out to disable dragging
-// static int is_dragging = 0;
-// static int drag_start_x, drag_start_y;
+/* Forward declaration for auto.c */
+void set_tools_window(GtkWidget *window);
 
 // Global display connection for cleanup
 static Display *global_display = NULL;
 static GtkWidget *main_window = NULL;
 
-/**
- * Data structure for view toggle operation.
- *
- * Holds references to widgets that need to be updated when switching
- * between list and grid display modes.
- */
+// Animation data for slide‑in effect
 typedef struct {
-    GtkWidget *scrolled_window;   ///< Container that holds the tool list
-    GtkWidget *container;          ///< Current tool container widget
-    GtkWidget *old_container;      ///< Container being replaced (for cleanup)
-    GtkWidget *window;             ///< Main application window
-    GtkWidget *view_button;        ///< Toggle button to update label
-} ViewToggleData;
+    GtkWindow *window;
+    int target_x;
+    int target_y;
+    int current_y;
+    int step;
+    guint timeout_id;
+} AnimationData;
 
 // Launch functions 
 /**
@@ -47,18 +42,15 @@ static void close_tools_window(void)
  * Launch the file manager and close the tools window.
  */
 static void launch_file_manager(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process
         execl("./blackline-fm", "blackline-fm", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -69,7 +61,6 @@ static void launch_file_manager(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_file_manager_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -77,11 +68,9 @@ static gboolean launch_file_manager_event(GtkWidget *widget, GdkEventButton *eve
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process
         execl("./blackline-fm", "blackline-fm", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -91,18 +80,15 @@ static gboolean launch_file_manager_event(GtkWidget *widget, GdkEventButton *eve
  * Launch the text editor and close the tools window.
  */
 static void launch_text_editor(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch custom text editor
         execl("./blackline-editor", "blackline-editor", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -113,7 +99,6 @@ static void launch_text_editor(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_text_editor_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -121,11 +106,9 @@ static gboolean launch_text_editor_event(GtkWidget *widget, GdkEventButton *even
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch custom text editor
         execl("./blackline-editor", "blackline-editor", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -135,18 +118,15 @@ static gboolean launch_text_editor_event(GtkWidget *widget, GdkEventButton *even
  * Launch the calculator and close the tools window.
  */
 static void launch_calculator(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch custom calculator 
         execl("./blackline-calculator", "blackline-calculator", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -157,7 +137,6 @@ static void launch_calculator(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_calculator_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -165,11 +144,9 @@ static gboolean launch_calculator_event(GtkWidget *widget, GdkEventButton *event
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch custom calculator 
         execl("./blackline-calculator", "blackline-calculator", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -179,18 +156,15 @@ static gboolean launch_calculator_event(GtkWidget *widget, GdkEventButton *event
  * Launch the system monitor and close the tools window.
  */
 static void launch_system_monitor(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch custom system monitor
         execl("./blackline-system-monitor", "blackline-system-monitor", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -201,7 +175,6 @@ static void launch_system_monitor(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_system_monitor_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -209,11 +182,9 @@ static gboolean launch_system_monitor_event(GtkWidget *widget, GdkEventButton *e
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch custom system monitor
         execl("./blackline-system-monitor", "blackline-system-monitor", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -224,18 +195,15 @@ static gboolean launch_system_monitor_event(GtkWidget *widget, GdkEventButton *e
  * Launch the VoidFox web browser and close the tools window.
  */
 static void launch_web_browser(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch VoidFox web browser
         execl("./voidfox", "voidfox", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -246,7 +214,6 @@ static void launch_web_browser(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_web_browser_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -254,11 +221,9 @@ static gboolean launch_web_browser_event(GtkWidget *widget, GdkEventButton *even
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch VoidFox web browser
         execl("./voidfox", "voidfox", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -272,12 +237,10 @@ static gboolean launch_web_browser_event(GtkWidget *widget, GdkEventButton *even
  * displays an error dialog with build instructions.
  */
 static void launch_firefox_wrapper(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
-    // Check if Firefox wrapper exists
     if (access("./tools/firefox/firefox-wrapper", X_OK) != 0 && 
         access("./firefox-wrapper", X_OK) != 0) {
         
@@ -295,7 +258,6 @@ static void launch_firefox_wrapper(GtkButton *button, gpointer window)
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process - try different paths
         if (access("./tools/firefox/firefox-wrapper", X_OK) == 0) {
             execl("./tools/firefox/firefox-wrapper", "firefox-wrapper", NULL);
         } else {
@@ -303,7 +265,6 @@ static void launch_firefox_wrapper(GtkButton *button, gpointer window)
         }
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -314,13 +275,11 @@ static void launch_firefox_wrapper(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_firefox_wrapper_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
     (void)window;
     
-    // Check if Firefox wrapper exists
     if (access("./tools/firefox/firefox-wrapper", X_OK) != 0 && 
         access("./firefox-wrapper", X_OK) != 0) {
         
@@ -338,7 +297,6 @@ static gboolean launch_firefox_wrapper_event(GtkWidget *widget, GdkEventButton *
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process - try different paths
         if (access("./tools/firefox/firefox-wrapper", X_OK) == 0) {
             execl("./tools/firefox/firefox-wrapper", "firefox-wrapper", NULL);
         } else {
@@ -346,7 +304,6 @@ static gboolean launch_firefox_wrapper_event(GtkWidget *widget, GdkEventButton *
         }
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -357,18 +314,15 @@ static gboolean launch_firefox_wrapper_event(GtkWidget *widget, GdkEventButton *
  * Launch the terminal and close the tools window.
  */
 static void launch_terminal(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch terminal
         execl("./blackline-terminal", "blackline-terminal", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -379,7 +333,6 @@ static void launch_terminal(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_terminal_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -387,33 +340,27 @@ static gboolean launch_terminal_event(GtkWidget *widget, GdkEventButton *event, 
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch terminal
         execl("./blackline-terminal", "blackline-terminal", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
 }
 
-// Add this launch function after the other launch functions
 /**
  * Launch the image viewer and close the tools window.
  */
 static void launch_image_viewer(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch image viewer
         execl("./blackline-image-viewer", "blackline-image-viewer", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -424,7 +371,6 @@ static void launch_image_viewer(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_image_viewer_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -432,11 +378,9 @@ static gboolean launch_image_viewer_event(GtkWidget *widget, GdkEventButton *eve
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Launch image viewer
         execl("./blackline-image-viewer", "blackline-image-viewer", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
@@ -447,18 +391,15 @@ static gboolean launch_image_viewer_event(GtkWidget *widget, GdkEventButton *eve
  * Launch the settings application and close the tools window.
  */
 static void launch_settings(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     (void)window;
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process
         execl("./blackline-settings", "blackline-settings", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
 }
@@ -469,7 +410,6 @@ static void launch_settings(GtkButton *button, gpointer window)
  * @return TRUE to indicate event was handled.
  */
 static gboolean launch_settings_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
-
 {
     (void)widget;
     (void)event;
@@ -477,24 +417,12 @@ static gboolean launch_settings_event(GtkWidget *widget, GdkEventButton *event, 
     
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process
         execl("./blackline-settings", "blackline-settings", NULL);
         exit(0);
     } else if (pid > 0) {
-        // Parent process - close tools window
         close_tools_window();
     }
     return TRUE;
-}
-
-// Minimize button handler - simple minimize
-/**
- * Minimize the tools window.
- */
-static void on_minimize_clicked(GtkButton *button, gpointer window) 
-{
-    (void)button;
-    gtk_window_iconify(GTK_WINDOW(window));
 }
 
 /**
@@ -503,37 +431,82 @@ static void on_minimize_clicked(GtkButton *button, gpointer window)
  * @return FALSE to allow further signal propagation.
  */
 static gboolean on_window_state_changed(GtkWidget *window, GdkEventWindowState *event, gpointer data) 
-
 {
     (void)data;
     return FALSE;
 }
 
 
-static ToolItem tools[] = 
-
+static ToolItem static_tools[] = 
 {
     {"File Manager", "📁", launch_file_manager, launch_file_manager_event, NULL},
     {"Text Editor", "📝", launch_text_editor, launch_text_editor_event, NULL},
     {"Terminal", "$", launch_terminal, launch_terminal_event, NULL},
-    {"Calculator", "🧮", launch_calculator, launch_calculator_event, NULL},
+    {"Calculator", "🔢", launch_calculator, launch_calculator_event, NULL},
     {"System Monitor", "📊", launch_system_monitor, launch_system_monitor_event, NULL},
-    {"Settings", "⚙️", launch_settings, launch_settings_event, NULL},  // Add this line
+    {"Settings", "⚙️", launch_settings, launch_settings_event, NULL},
     {"Image", "🖼️", launch_image_viewer, launch_image_viewer_event, NULL},
     {"VoidFox", "🌐", launch_web_browser, launch_web_browser_event, NULL},
     {"Firefox", "🦊", launch_firefox_wrapper, launch_firefox_wrapper_event, NULL}
 };
 
-static int num_tools = sizeof(tools) / sizeof(tools[0]);  // KEEP ONLY THIS ONE
+static int num_static_tools = sizeof(static_tools) / sizeof(static_tools[0]);
 
-// REMOVE THIS DUPLICATE LINE:
-// static int num_tools = sizeof(tools) / sizeof(tools[0]);
+/**
+ * Creates a grid container for tools (vertical icon + label).
+ *
+ * @param tools Array of ToolItem structures.
+ * @param num_tools Number of tools.
+ * @param window Parent window reference.
+ * @return GtkWidget container with all tool buttons.
+ */
+static GtkWidget* create_tools_container(ToolItem *tools, int num_tools, gpointer window)
+{
+    GtkWidget *flowbox = gtk_flow_box_new();
+    gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flowbox), FALSE);
+    gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flowbox), 6);
+    gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flowbox), GTK_SELECTION_NONE);
+    gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flowbox), 8);
+    gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flowbox), 8);
+    
+    for (int i = 0; i < num_tools; i++) {
+        GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+        gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
+        gtk_widget_set_margin_start(box, 8);
+        gtk_widget_set_margin_end(box, 8);
+        gtk_widget_set_margin_top(box, 6);
+        gtk_widget_set_margin_bottom(box, 6);
+        
+        GtkWidget *icon_label = gtk_label_new(tools[i].icon);
+        gtk_label_set_xalign(GTK_LABEL(icon_label), 0.5);
+        PangoFontDescription *font_desc = pango_font_description_from_string("Sans 22");
+        gtk_widget_override_font(icon_label, font_desc);
+        pango_font_description_free(font_desc);
+        
+        GtkWidget *name_label = gtk_label_new(tools[i].name);
+        gtk_label_set_xalign(GTK_LABEL(name_label), 0.5);
+        
+        gtk_box_pack_start(GTK_BOX(box), icon_label, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), name_label, FALSE, FALSE, 0);
+        
+        GtkWidget *event_box = gtk_event_box_new();
+        gtk_container_add(GTK_CONTAINER(event_box), box);
+        gtk_widget_set_name(event_box, "tool-item");
+        
+        if (tools[i].button_callback) {
+            g_signal_connect(event_box, "button-release-event", G_CALLBACK(tools[i].event_callback), tools[i].user_data);
+        }
+        
+        gtk_container_add(GTK_CONTAINER(flowbox), event_box);
+    }
+    
+    return flowbox;
+}
 
 /**
  * Close button handler - destroys the window.
  */
 static void on_close_clicked(GtkButton *button, gpointer window) 
-
 {
     (void)button;
     gtk_window_close(GTK_WINDOW(window));
@@ -546,13 +519,11 @@ static void on_close_clicked(GtkButton *button, gpointer window)
  * allowing new instances to launch after this one exits.
  */
 static void on_window_destroy(GtkWidget *widget, gpointer data) 
-
 {
     (void)widget;
     (void)data;
     
     if (global_display) {
-        // Remove the atom property
         Atom tools_atom = XInternAtom(global_display, "_BLACKLINE_TOOLS_WINDOW", False);
         if (tools_atom != None) {
             XDeleteProperty(global_display, DefaultRootWindow(global_display), tools_atom);
@@ -569,30 +540,24 @@ static void on_window_destroy(GtkWidget *widget, gpointer data)
  * for single-instance detection.
  */
 static void on_window_realized(GtkWidget *window, gpointer data) 
-
 {
-    // Get display for atom operations
     Display *xdisplay = GDK_DISPLAY_XDISPLAY(gtk_widget_get_display(window));
-    global_display = xdisplay;  // Store for cleanup
+    global_display = xdisplay;
     
-    // Get the X window ID
     GdkWindow *gdk_window = gtk_widget_get_window(window);
     if (gdk_window) {
         Window xwindow = GDK_WINDOW_XID(gdk_window);
         
-        // Set window type to DOCK so window manager doesn't kill it
         Atom net_wm_window_type = XInternAtom(xdisplay, "_NET_WM_WINDOW_TYPE", False);
         Atom net_wm_window_type_dock = XInternAtom(xdisplay, "_NET_WM_WINDOW_TYPE_DOCK", False);
         XChangeProperty(xdisplay, xwindow, net_wm_window_type, XA_ATOM, 32,
                        PropModeReplace, (unsigned char*)&net_wm_window_type_dock, 1);
         
-        // Set _NET_WM_PID property for easier window detection
         Atom net_wm_pid = XInternAtom(xdisplay, "_NET_WM_PID", False);
         pid_t pid = getpid();
         XChangeProperty(xdisplay, xwindow, net_wm_pid, XA_CARDINAL, 32,
                     PropModeReplace, (unsigned char*)&pid, 1);
         
-        // Set a unique atom on the root window to identify this instance
         Atom tools_atom = XInternAtom(xdisplay, "_BLACKLINE_TOOLS_WINDOW", False);
         XChangeProperty(xdisplay, DefaultRootWindow(xdisplay), tools_atom, XA_WINDOW, 32,
                         PropModeReplace, (unsigned char*)&xwindow, 1);
@@ -600,136 +565,119 @@ static void on_window_realized(GtkWidget *window, gpointer data)
     }
 }
 
-// View toggle callback 
 /**
- * Toggle between list and grid view modes.
+ * Slide animation step.
  *
- * Recreates the tools container with the new mode, updates the scrolled
- * window, button label, and window size. The old container is destroyed
- * after replacement to prevent memory leaks.
- *
- * @param button The toggle button (used to update label).
- * @param user_data ViewToggleData structure containing widget references.
+ * Moves the window by a fixed amount each tick until it reaches the target Y.
  */
-static void on_view_toggle_clicked(GtkButton *button, gpointer user_data) 
-
+static gboolean animate_slide(gpointer data)
 {
-    ViewToggleData *data = (ViewToggleData *)user_data;
+    AnimationData *anim = (AnimationData*)data;
+    int new_y = anim->current_y + anim->step;
     
-    if (!data->scrolled_window || !data->container || !data->window || !data->view_button) {
-        g_warning("Missing data in view toggle callback");
-        return;
+    if ((anim->step > 0 && new_y >= anim->target_y) ||
+        (anim->step < 0 && new_y <= anim->target_y)) {
+        new_y = anim->target_y;
+        gtk_window_move(anim->window, anim->target_x, new_y);
+        g_source_remove(anim->timeout_id);
+        g_free(anim);
+        return G_SOURCE_REMOVE;
     }
     
-    // Get current mode and toggle
-    ViewMode current = view_mode_get_current();
-    ViewMode new_mode = (current == VIEW_MODE_LIST) ? VIEW_MODE_GRID : VIEW_MODE_LIST;
+    gtk_window_move(anim->window, anim->target_x, new_y);
+    anim->current_y = new_y;
+    return G_SOURCE_CONTINUE;
+}
+
+/**
+ * Start slide‑in animation from the top.
+ *
+ * @param window     The window to animate.
+ * @param target_x   Final X coordinate.
+ * @param target_y   Final Y coordinate.
+ * @param start_y    Starting Y coordinate (usually -height).
+ */
+static void start_slide_animation(GtkWindow *window, int target_x, int target_y, int start_y)
+{
+    AnimationData *anim = g_new0(AnimationData, 1);
+    anim->window = window;
+    anim->target_x = target_x;
+    anim->target_y = target_y;
+    anim->current_y = start_y;
+    anim->step = 32;
     
-    // Store the current container to be removed later
-    GtkWidget *old_container = data->container;
-    
-    // Create new container with new mode
-    GtkWidget *new_container = view_mode_create_container(tools, num_tools, new_mode, data->window);
-    
-    // Remove old container from scrolled window
-    GtkWidget *current_child = gtk_bin_get_child(GTK_BIN(data->scrolled_window));
-    if (current_child) {
-        gtk_container_remove(GTK_CONTAINER(data->scrolled_window), current_child);
-    }
-    
-    // Add new container to scrolled window
-    gtk_container_add(GTK_CONTAINER(data->scrolled_window), new_container);
-    
-    // Update data
-    data->container = new_container;
-    
-    // Set new mode
-    view_mode_set_current(new_mode);
-    
-    // Update button label and window size
-    if (new_mode == VIEW_MODE_LIST) {
-        gtk_button_set_label(button, "📋 List");
-        gtk_window_set_default_size(GTK_WINDOW(data->window), 300, 400);
-    } else {
-        gtk_button_set_label(button, "🔲 Grid");
-        gtk_window_set_default_size(GTK_WINDOW(data->window), 350, 400);
-    }
-    
-    // Show all widgets
-    gtk_widget_show_all(data->window);
-    
-    // Destroy the old container
-    if (old_container) {
-        gtk_widget_destroy(old_container);
-    }
-    
-    // Save the new mode to config file
-    view_mode_save();
-    
-    g_print("Switched to %s mode\n", new_mode == VIEW_MODE_LIST ? "LIST" : "GRID");
+    anim->timeout_id = g_timeout_add(10, animate_slide, anim);
 }
 
 /**
  * Application activation callback.
  *
- * Creates the main window, sets up UI components, loads saved view mode,
- * applies CSS styling, and initializes the tools container.
+ * Creates the main window, sets up UI components, applies CSS styling,
+ * and initializes the tools container with both static and detected apps.
  */
 static void activate(GtkApplication *app, gpointer user_data) 
-
 {
     GtkWidget *window = gtk_application_window_new(app);
-    main_window = window;  // Store global reference for close function
+    main_window = window;
+    set_tools_window(window);
+    
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Tools");
     
-    // Load saved view mode 
-    view_mode_load();
+    // Detect installed applications from system
+    int detected_count = 0;
+    DetectedApp *detected = detect_installed_apps(&detected_count);
     
-    // Get the saved mode 
-    ViewMode saved_mode = view_mode_get_current();
+    // Merge static tools with detected applications
+    int total_tools = 0;
+    ToolItem *all_tools = merge_tool_items(static_tools, num_static_tools, 
+                                           detected, detected_count,
+                                           window, &total_tools);
     
-    //debug output
-    if (saved_mode == VIEW_MODE_LIST) {
-        g_print("Tools container starting in LIST mode\n");
-    } else {
-        g_print("Tools container starting in GRID mode\n");
-    }
+    // Print debug info
+    g_print("Loaded %d static tools, found %d detected apps, total: %d\n", 
+            num_static_tools, detected_count, total_tools);
     
-    // Set window size based on mode 
-    if (saved_mode == VIEW_MODE_LIST) {
-        gtk_window_set_default_size(GTK_WINDOW(window), 300, 400);
-    } else {
-        gtk_window_set_default_size(GTK_WINDOW(window), 350, 400);
-    }
+    // Compute full‑screen margins and target size
+    GdkDisplay *display = gdk_display_get_default();
+    GdkMonitor *monitor = gdk_display_get_primary_monitor(display);
+    if (!monitor) monitor = gdk_display_get_monitor_at_point(display, 0, 0);
+    GdkRectangle monitor_geom;
+    gdk_monitor_get_geometry(monitor, &monitor_geom);
     
-    // Set fixed position 
-    // These coordinates are relative to the X display
-    gtk_window_move(GTK_WINDOW(window), 10, 40);  // Fixed position (x=10, y=40) - below the panel
+    int margin_top = 50;
+    int margin_bottom = 50;
+    int margin_left = 50;
+    int margin_right = 50;
     
-    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);  // Don't auto-center
-    gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
+    int target_width = monitor_geom.width - margin_left - margin_right;
+    int target_height = monitor_geom.height - margin_top - margin_bottom;
+    if (target_width < 400) target_width = 400;
+    if (target_height < 300) target_height = 300;
+    
+    int target_x = margin_left;
+    int target_y = margin_top;
+    
+    gtk_window_set_default_size(GTK_WINDOW(window), target_width, target_height);
+    gtk_window_move(GTK_WINDOW(window), target_x, -target_height);
+    
+    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_NONE);
+    gtk_window_set_resizable(GTK_WINDOW(window), TRUE);
     gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
-    gtk_window_set_decorated(GTK_WINDOW(window), FALSE); 
+    gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
     
-    // Connect window state signal for minimize
     g_signal_connect(window, "window-state-event", G_CALLBACK(on_window_state_changed), NULL);
     
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
     gtk_container_add(GTK_CONTAINER(window), vbox);
     
-    // Title bar with view toggle, minimize, and close
+    // Title bar with only close button
     GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     
     GtkWidget *title = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(title), "<b>Tools</b>");
     gtk_box_pack_start(GTK_BOX(hbox), title, TRUE, TRUE, 0);
-    
-    // View toggle button
-    GtkWidget *view_btn = gtk_button_new_with_label("");
-    gtk_widget_set_size_request(view_btn, 60, 25);
-    gtk_box_pack_end(GTK_BOX(hbox), view_btn, FALSE, FALSE, 0);
     
     GtkWidget *close_btn = gtk_button_new_with_label("X");
     gtk_widget_set_size_request(close_btn, 30, 25);
@@ -740,89 +688,64 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), sep, FALSE, FALSE, 5);
     
-    // Set button label based on saved mode
-    if (saved_mode == VIEW_MODE_LIST) {
-        gtk_button_set_label(GTK_BUTTON(view_btn), "📋 List");
-    } else {
-        gtk_button_set_label(GTK_BUTTON(view_btn), "🔲 Grid");
-    }
-    
-    // Create a scrolled window to contain the tools container 
+    // Scrolled window with proper scrollbar styling
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
-                                   GTK_POLICY_NEVER,     // Horizontal scrollbar never
-                                   GTK_POLICY_AUTOMATIC); // Vertical scrollbar when needed
-    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 300);
+                                   GTK_POLICY_NEVER,
+                                   GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 400);
     
-    // Create container with saved mode - this will use the loaded mode
-    GtkWidget *tools_container = view_mode_create_container(tools, num_tools, saved_mode, window);
-    
-    // Add the tools container to the scrolled window
+    // Create container with all tools (static + detected)
+    GtkWidget *tools_container = create_tools_container(all_tools, total_tools, window);
     gtk_container_add(GTK_CONTAINER(scrolled_window), tools_container);
-    
-    // Pack the scrolled window into the main vbox
     gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 0);
     
-    // Create and store toggle data
-    ViewToggleData *toggle_data = g_new0(ViewToggleData, 1);
-    toggle_data->scrolled_window = scrolled_window;
-    toggle_data->container = tools_container;
-    toggle_data->old_container = NULL;
-    toggle_data->window = window;
-    toggle_data->view_button = view_btn;
-    
-    // Store data on view button for later use
-    g_object_set_data_full(G_OBJECT(view_btn), "toggle-data", toggle_data, g_free);
-    
-    // Connect view toggle button
-    g_signal_connect(view_btn, "clicked", G_CALLBACK(on_view_toggle_clicked), toggle_data);
-    
-    // Connect destroy signal to clean up atom
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), NULL);
-    
-    // Connect realize signal to set atoms after window is ready
     g_signal_connect(window, "realize", G_CALLBACK(on_window_realized), NULL);
     
     // Add some spacing at the bottom
     GtkWidget *bottom_spacer = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(vbox), bottom_spacer, TRUE, TRUE, 0);
     
-    // css
+    // CSS for styling
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
         "window { background-color: #0b0f14; color: #ffffff; border: 1px solid #62316b; }"
         "button { background-color: #1e2429; color: #62316b; border: none; }"
         "button:hover { background-color: #2a323a; }"
         "button:active { background-color: #2a323a; }"
+        "#tool-item { background-color: transparent; border: none; }"
+        "#tool-item:hover { background-color: rgba(30, 36, 41, 0.6); border-radius: 12px; }"
         "label { color: #ffffff; }"
-        "entry { background-color: #1e2429; color: #ffffff; border: 1px solid #62316b; }"
-        "entry:focus { border-color: #44ffaa; box-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }"
         "scrolledwindow { border: none; background-color: #0b0f14; }"
         "scrollbar { background-color: #1e2429; }"
         "scrollbar slider { background-color: #62316b; border-radius: 4px; min-width: 8px; min-height: 8px; }"
-        "scrollbar slider:hover { background-color: #62316b; }"
-        "scrollbar slider:active { background-color: #62316b; }"
-        "scrollbar trough { background-color: #2a323a; border-radius: 4px; }",
+        "scrollbar slider:hover { background-color: #7a3b8b; }"
+        "scrollbar slider:active { background-color: #9a4bab; }"
+        "scrollbar trough { background-color: #2a323a; border-radius: 4px; }"
+        "flowbox { background-color: #0b0f14; }"
+        "flowboxchild { background-color: transparent; }",
         -1, NULL);
         
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
     
-    // Show all widgets 
     gtk_widget_show_all(window);
+    
+    // Start slide‑in animation after window is visible
+    start_slide_animation(GTK_WINDOW(window), target_x, target_y, -target_height);
+    
+    // Clean up detected apps and merged tools
+    free_detected_apps(detected, detected_count);
+    for (int i = num_static_tools; i < total_tools; i++) {
+        g_free(all_tools[i].name);
+        g_free(all_tools[i].icon);
+    }
+    g_free(all_tools);
 }
 
 // Single-instance check: if another instance exists, raise it and exit.
-/**
- * Find an existing instance of the tools window.
- *
- * @param dpy X11 display connection.
- * @return Window ID of existing instance, or None if none found.
- *
- * Reads the _BLACKLINE_TOOLS_WINDOW property from the root window.
- * Validates that the window still exists and is mapped.
- */
 static Window find_existing_instance(Display *dpy) 
 {
     Atom atom = XInternAtom(dpy, "_BLACKLINE_TOOLS_WINDOW", False);
@@ -842,7 +765,6 @@ static Window find_existing_instance(Display *dpy)
         Window win = *(Window*)data;
         XFree(data);
         
-        // Verify the window still exists and is mapped
         XWindowAttributes attrs;
         if (XGetWindowAttributes(dpy, win, &attrs) != 0) {
             if (attrs.map_state != IsUnmapped) {
@@ -850,7 +772,6 @@ static Window find_existing_instance(Display *dpy)
             }
         }
         
-        // Window exists but is unmapped 
         XDeleteProperty(dpy, root, atom);
         XFlush(dpy);
     } else {
@@ -860,14 +781,7 @@ static Window find_existing_instance(Display *dpy)
     return None;
 }
 
-/**
- * Raise an existing window to the foreground.
- *
- * @param dpy X11 display connection.
- * @param win Window ID to raise.
- */
 static void raise_window(Display *dpy, Window win) 
-
 {
     XRaiseWindow(dpy, win);
     XMapRaised(dpy, win);
@@ -882,16 +796,14 @@ static void raise_window(Display *dpy, Window win)
  * the main loop.
  */
 int main(int argc, char **argv) 
-
 {
-    // Check for existing instance
     Display *dpy = XOpenDisplay(NULL);
     if (dpy) {
         Window existing = find_existing_instance(dpy);
         if (existing != None) {
             raise_window(dpy, existing);
             XCloseDisplay(dpy);
-            return 0;  // Exit
+            return 0;
         }
         XCloseDisplay(dpy);
     }
