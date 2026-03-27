@@ -120,9 +120,16 @@ blackline-tools: $(TOOLS_SOURCES) $(TOOLS_HEADERS)
 blackline-background: tools/background.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-# File Manager - includes window_resize.c for drag/resize functionality
-FM_SOURCES = tools/file-manager/fm.c tools/file-manager/browser.c tools/image-viewer/image-viewer-launcher.c tools/window_resize.c
-FM_HEADERS = tools/file-manager/fm.h tools/image-viewer/image-viewer.h tools/window_resize.h
+# File Manager - includes window_resize.c and recycle_bin for trash functionality
+FM_SOURCES = tools/file-manager/fm.c \
+             tools/file-manager/browser.c \
+             tools/file-manager/recycle_bin.c \
+             tools/image-viewer/image-viewer-launcher.c \
+             tools/window_resize.c
+FM_HEADERS = tools/file-manager/fm.h \
+             tools/file-manager/recycle_bin.h \
+             tools/image-viewer/image-viewer.h \
+             tools/window_resize.h
 
 blackline-fm: $(FM_SOURCES) $(FM_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(FM_SOURCES) $(GTK_LIBS)
@@ -246,7 +253,7 @@ clean:
 	      $(SETTINGS_TARGET)
 	rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o \
 	      tools/terminal/*.o launcher/*.o session/*.o tools/image-viewer/*.o \
-	      tools/settings/*.o tools/settings/display/*.o
+	      tools/settings/*.o tools/settings/display/*.o tools/file-manager/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
 
@@ -414,7 +421,7 @@ help:
 	@echo "  blackline-launcher     - Build application launcher"
 	@echo "  blackline-tools        - Build tools container with view mode"
 	@echo "  blackline-background   - Build background setter"
-	@echo "  blackline-fm           - Build file manager"
+	@echo "  blackline-fm           - Build file manager (with trash support)"
 	@echo "  blackline-editor       - Build text editor"
 	@echo "  blackline-terminal     - Build terminal emulator"
 	@echo "  blackline-calculator   - Build calculator"
@@ -450,6 +457,18 @@ help:
 	@echo "  run-image-viewer       - Run image viewer (use ARGS=filename.jpg to open a file)"
 	@echo "  run-settings           - Run settings tool"
 	@echo "  run-session            - Run session manager (for testing)"
+	@echo ""
+	@echo "File Manager Features (new):"
+	@echo "  - Right-click context menu with file operations"
+	@echo "  - Trash support: deleted files go to ~/.local/share/Trash"
+	@echo "  - Empty Trash option when right-clicking on Trash directory"
+	@echo "  - Cut, Copy, Paste operations"
+	@echo "  - New Folder/File creation"
+	@echo "  - Properties dialog with file info"
+	@echo "  - Open in Terminal"
+	@echo "  - Navigation history (back/forward)"
+	@echo "  - Sidebar with Home, Root, Recent, Starred, Trash"
+	@echo "  - Drag and drop window movement/resizing"
 	@echo ""
 	@echo "Settings Tool Features:"
 	@echo "  - Display tab with:"

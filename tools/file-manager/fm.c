@@ -1,5 +1,6 @@
 #include "fm.h"
 #include "window_resize.h"
+#include "recycle_bin.h"
 #include <gio/gio.h>
 #include <string.h>
 #include <gdk/gdkkeysyms.h>
@@ -7,7 +8,6 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
 /* Forward declaration of browser function */
 void browser_open_file(FileManager *fm, const gchar *path);
 
@@ -38,6 +38,7 @@ static void fm_new_file(FileManager *fm);
 static void fm_load_directory_contents(FileManager *fm);
 static void fm_update_navigation_buttons(FileManager *fm);
 static void fm_add_to_history(FileManager *fm, GFile *file);
+static void fm_empty_trash(FileManager *fm);
 
 /* Helper functions for formatting */
 
@@ -664,9 +665,16 @@ static void fm_show_context_menu(FileManager *fm, GdkEventButton *event, const g
         g_signal_connect_swapped(item, "activate", G_CALLBACK(fm_new_folder), fm); /* Placeholder */
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
-        item = gtk_menu_item_new_with_label("Delete");
-        g_signal_connect_swapped(item, "activate", G_CALLBACK(fm_move_to_trash), (gpointer)selected_path);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+        /* Special handling for trash directory: show Empty Trash instead of Delete */
+        if (is_trash_directory(selected_path)) {
+            item = gtk_menu_item_new_with_label("Empty Trash");
+            g_signal_connect_swapped(item, "activate", G_CALLBACK(fm_empty_trash), fm);
+            gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+        } else {
+            item = gtk_menu_item_new_with_label("Delete");
+            g_signal_connect_swapped(item, "activate", G_CALLBACK(fm_move_to_trash), (gpointer)selected_path);
+            gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+        }
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
 
@@ -859,6 +867,21 @@ static void fm_delete_permanently(const gchar *path)
         g_error_free(error);
     }
     g_object_unref(file);
+}
+
+/**
+ * Empties the trash permanently.
+ *
+ * @param fm FileManager instance.
+ */
+static void fm_empty_trash(FileManager *fm)
+{
+    if (empty_trash()) {
+        gtk_label_set_text(GTK_LABEL(fm->status_label), "Trash emptied");
+        fm_refresh(fm);
+    } else {
+        gtk_label_set_text(GTK_LABEL(fm->status_label), "Failed to empty trash");
+    }
 }
 
 /**
