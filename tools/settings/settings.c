@@ -285,7 +285,32 @@ static void activate(GtkApplication *app, gpointer user_data)
     
     gtk_window_set_title(GTK_WINDOW(state->window), "BlackLine Settings");
     gtk_window_set_default_size(GTK_WINDOW(state->window), 700, 500);
-    gtk_window_set_position(GTK_WINDOW(state->window), GTK_WIN_POS_CENTER);
+    
+    // Get monitor geometry for positioning below panel
+    GdkDisplay *display = gdk_display_get_default();
+    GdkMonitor *monitor = gdk_display_get_primary_monitor(display);
+    if (!monitor) monitor = gdk_display_get_monitor_at_point(display, 0, 0);
+    GdkRectangle monitor_geom;
+    gdk_monitor_get_geometry(monitor, &monitor_geom);
+    
+    // Panel height (adjust based on your panel)
+    int panel_height = 40;
+    
+    // Position window below the panel
+    int window_width, window_height;
+    gtk_window_get_default_size(GTK_WINDOW(state->window), &window_width, &window_height);
+    
+    // Calculate position: centered horizontally, below panel vertically
+    int pos_x = (monitor_geom.width - window_width) / 2;
+    int pos_y = panel_height + 10;  // Panel height + small gap
+    
+    // Ensure window stays within screen bounds
+    if (pos_x < 0) pos_x = 10;
+    if (pos_y + window_height > monitor_geom.height) {
+        pos_y = monitor_geom.height - window_height - 10;
+    }
+    
+    gtk_window_move(GTK_WINDOW(state->window), pos_x, pos_y);
     
     // Remove default titlebar
     gtk_window_set_decorated(GTK_WINDOW(state->window), FALSE);

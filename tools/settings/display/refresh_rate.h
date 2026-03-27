@@ -1,15 +1,15 @@
-#ifndef REFRESH_RATE_H
-#define REFRESH_RATE_H
+#ifndef LIDE_REFRESH_RATE_H
+#define LIDE_REFRESH_RATE_H
 
 #include <gtk/gtk.h>
 
 /**
  * Creates the refresh rate selection widget.
- * Provides a combo box with common display refresh rates.
+ * Detects available refresh rates for the current display and provides a combo box for selection.
+ * When a refresh rate is selected, it applies it immediately using xrandr.
  *
- * @return GtkWidget containing horizontally packed label and combo box.
- *         Default selection is 60 Hz.
+ * @return GtkWidget containing refresh rate settings UI
  */
 GtkWidget *refresh_rate_widget_new(void);
 
-#endif /* REFRESH_RATE_H */
+#endif /* LIDE_REFRESH_RATE_H */

@@ -989,13 +989,40 @@ static gboolean on_delete_event(GtkWidget *widget, GdkEvent *event, AppState *st
  *
  * @sideeffect Initializes all UI components and sets up signal handlers.
  */
+
 static void activate(GtkApplication *app, gpointer user_data) {
     (void)user_data;
     AppState *state = g_new0(AppState, 1);
     state->zoom_factor = 1.0;
     state->window = gtk_application_window_new(app);
+    
+    /* Get monitor geometry for positioning below panel */
+    GdkDisplay *display = gdk_display_get_default();
+    GdkMonitor *monitor = gdk_display_get_primary_monitor(display);
+    if (!monitor) monitor = gdk_display_get_monitor_at_point(display, 0, 0);
+    GdkRectangle monitor_geom;
+    gdk_monitor_get_geometry(monitor, &monitor_geom);
+    
+    /* Panel height (adjust based on your panel) */
+    int panel_height = 40;
+    
+    /* Position window below panel */
+    int window_width = 800;
+    int window_height = 600;
+    
+    int pos_x = (monitor_geom.width - window_width) / 2; /* Center horizontally */
+    int pos_y = panel_height + 10; /* Panel height + small gap */
+    
+    /* Ensure window stays within screen bounds */
+    if (pos_x < 0) pos_x = 10;
+    if (pos_y + window_height > monitor_geom.height) {
+        pos_y = monitor_geom.height - window_height - 10;
+    }
+    
+    gtk_window_move(GTK_WINDOW(state->window), pos_x, pos_y);
     gtk_window_set_title(GTK_WINDOW(state->window), "BlackLine Image Viewer");
-    gtk_window_set_default_size(GTK_WINDOW(state->window), 800, 600);
+    gtk_window_set_default_size(GTK_WINDOW(state->window), window_width, window_height);
+    gtk_window_set_position(GTK_WINDOW(state->window), GTK_WIN_POS_NONE);
     gtk_window_set_icon_name(GTK_WINDOW(state->window), "image-x-generic");
 
     /* Header bar with toolbar buttons */

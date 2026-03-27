@@ -466,20 +466,20 @@ static GtkWidget* create_tools_container(ToolItem *tools, int num_tools, gpointe
     gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flowbox), FALSE);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flowbox), 6);
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flowbox), GTK_SELECTION_NONE);
-    gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flowbox), 8);
-    gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flowbox), 8);
+    gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flowbox), 4);
+    gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flowbox), 2);
     
     for (int i = 0; i < num_tools; i++) {
-        GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+        GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
         gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
-        gtk_widget_set_margin_start(box, 8);
-        gtk_widget_set_margin_end(box, 8);
-        gtk_widget_set_margin_top(box, 6);
-        gtk_widget_set_margin_bottom(box, 6);
+        gtk_widget_set_margin_start(box, 6);
+        gtk_widget_set_margin_end(box, 6);
+        gtk_widget_set_margin_top(box, 4);
+        gtk_widget_set_margin_bottom(box, 4);
         
         GtkWidget *icon_label = gtk_label_new(tools[i].icon);
         gtk_label_set_xalign(GTK_LABEL(icon_label), 0.5);
-        PangoFontDescription *font_desc = pango_font_description_from_string("Sans 22");
+        PangoFontDescription *font_desc = pango_font_description_from_string("Sans 20");
         gtk_widget_override_font(icon_label, font_desc);
         pango_font_description_free(font_desc);
         
@@ -704,15 +704,15 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *bottom_spacer = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(vbox), bottom_spacer, TRUE, TRUE, 0);
     
-    // CSS for styling with zoom effect on click
+    // CSS for styling
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
         "window { background-color: #0b0f14; color: #ffffff; border: 1px solid #62316b; }"
         "button { background-color: #1e2429; color: #62316b; border: none; }"
         "button:hover { background-color: #2a323a; }"
         "button:active { background-color: #2a323a; }"
-        "#tool-item { background-color: transparent; border: none; transition: all 0.1s ease-out; }"
-        "#tool-item:active { transform: scale(0.95); }"
+        "#tool-item { background-color: transparent; border: none; }"
+        "#tool-item:hover { background-color: rgba(30, 36, 41, 0.6); border-radius: 8px; }"
         "label { color: #ffffff; }"
         "scrolledwindow { border: none; background-color: #0b0f14; }"
         "scrollbar { background-color: #1e2429; }"
