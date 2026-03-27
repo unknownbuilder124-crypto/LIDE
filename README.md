@@ -1,4 +1,4 @@
-# BlackLine Desktop Environment
+# Lightweight Integrated Desktop Environment
 
 A lightweight, modular desktop environment written in C, featuring a custom window manager using Xlib and GTK3-based components. BlackLine (formerly LIDE) is designed for simplicity, performance, and a clean terminal-inspired aesthetic.
 
