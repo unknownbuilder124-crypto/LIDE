@@ -92,7 +92,12 @@ install_debian() {
         libc6-dev \
         autoconf \
         automake \
-        libtool
+        libtool \
+        meson \
+        ninja-build \
+        valgrind \
+        gdb \
+        strace
 
     # X11 and window manager dependencies
     apt-get install -y \
@@ -163,7 +168,7 @@ install_debian() {
         libjbig-dev \
         liblzma-dev
 
-    # Terminal dependencies
+    # Terminal dependencies (VTE)
     apt-get install -y \
         libvte-2.91-dev \
         libvte-2.91-gtk3-dev \
@@ -184,6 +189,15 @@ install_debian() {
         libnl-3-dev \
         libnl-genl-3-dev
 
+    # ALSA and PulseAudio for sound settings
+    apt-get install -y \
+        alsa-utils \
+        libasound2-dev \
+        libpulse-dev \
+        pulseaudio \
+        pavucontrol \
+        speaker-test
+
     # Utilities
     apt-get install -y \
         xorg \
@@ -195,21 +209,12 @@ install_debian() {
         xdotool \
         wmctrl \
         x11vnc \
-        xvfb
-
-    # Additional tools
-    apt-get install -y \
+        xvfb \
         curl \
         wget \
         nano \
         vim \
-        htop \
-        cmake \
-        meson \
-        ninja-build \
-        valgrind \
-        gdb \
-        strace
+        htop
 
     print_success "Debian/Ubuntu/Kali dependencies installed"
 }
@@ -229,7 +234,12 @@ install_fedora() {
         kernel-devel \
         autoconf \
         automake \
-        libtool
+        libtool \
+        meson \
+        ninja-build \
+        valgrind \
+        gdb \
+        strace
 
     # X11 and window manager dependencies
     dnf install -y \
@@ -308,6 +318,15 @@ install_fedora() {
         NetworkManager-libnm-devel \
         libnl3-devel
 
+    # ALSA and PulseAudio
+    dnf install -y \
+        alsa-utils \
+        alsa-lib-devel \
+        pulseaudio-libs-devel \
+        pulseaudio \
+        pavucontrol \
+        alsa-plugins-pulseaudio
+
     # Utilities
     dnf install -y \
         xorg-x11-server-Xephyr \
@@ -317,20 +336,12 @@ install_fedora() {
         xdotool \
         wmctrl \
         x11vnc \
-        xorg-x11-server-Xvfb
-
-    # Additional tools
-    dnf install -y \
+        xorg-x11-server-Xvfb \
         curl \
         wget \
         nano \
         vim \
-        htop \
-        meson \
-        ninja-build \
-        valgrind \
-        gdb \
-        strace
+        htop
 
     print_success "Fedora dependencies installed"
 }
@@ -349,7 +360,12 @@ install_arch() {
         pkg-config \
         autoconf \
         automake \
-        libtool
+        libtool \
+        meson \
+        ninja \
+        valgrind \
+        gdb \
+        strace
 
     # X11 and window manager dependencies
     pacman -S --noconfirm \
@@ -430,6 +446,15 @@ install_arch() {
         libnm \
         libnl
 
+    # ALSA and PulseAudio
+    pacman -S --noconfirm \
+        alsa-utils \
+        alsa-lib \
+        pulseaudio \
+        pulseaudio-alsa \
+        pavucontrol \
+        libpulse
+
     # Utilities
     pacman -S --noconfirm \
         xorg-server-xephyr \
@@ -439,20 +464,12 @@ install_arch() {
         xdotool \
         wmctrl \
         x11vnc \
-        xorg-server-xvfb
-
-    # Additional tools
-    pacman -S --noconfirm \
+        xorg-server-xvfb \
         curl \
         wget \
         nano \
         vim \
-        htop \
-        meson \
-        ninja \
-        valgrind \
-        gdb \
-        strace
+        htop
 
     print_success "Arch Linux dependencies installed"
 }
@@ -477,6 +494,10 @@ install_macos() {
         autoconf \
         automake \
         libtool \
+        meson \
+        ninja \
+        valgrind \
+        gdb \
         libx11 \
         gtk+3 \
         gtk+4 \
@@ -492,15 +513,13 @@ install_macos() {
         libtiff \
         librsvg \
         vte \
+        alsa-utils \
+        pulseaudio \
         curl \
         wget \
         nano \
         vim \
-        htop \
-        meson \
-        ninja \
-        valgrind \
-        gdb
+        htop
 
     print_success "macOS dependencies installed (partial)"
 }
@@ -509,14 +528,41 @@ install_macos() {
 install_unknown() {
     print_error "Unknown operating system. Please install dependencies manually."
     print_status "Required packages:"
-    echo "  - X11 development libraries (libx11-dev, libxft-dev, libxinerama-dev, etc.)"
-    echo "  - GTK3/GTK4 development libraries (libgtk-3-dev, libgtk-4-dev)"
-    echo "  - WebKit2GTK development libraries (libwebkit2gtk-4.1-dev)"
-    echo "  - Imlib2 development library (libimlib2-dev)"
-    echo "  - VTE terminal library (libvte-2.91-dev)"
-    echo "  - NetworkManager development (libnm-dev)"
-    echo "  - System monitoring (libgtop2-dev, libprocps-dev)"
-    echo "  - Build tools (gcc, make, cmake, pkg-config, autoconf, automake)"
+    echo ""
+    echo "  Core Development:"
+    echo "    - build-essential, gcc, make, cmake, pkg-config, autoconf, automake, libtool, meson, ninja-build"
+    echo ""
+    echo "  X11 & Window Manager:"
+    echo "    - libx11-dev, libxft-dev, libxinerama-dev, libxrandr-dev, libxcursor-dev, libxi-dev, libxext-dev"
+    echo "    - libxcomposite-dev, libxdamage-dev, libxfixes-dev, libxrender-dev, libxss-dev, libxtst-dev"
+    echo "    - libxcb1-dev, libxcb-util0-dev, libxcb-icccm4-dev, libxcb-keysyms1-dev, libxcb-randr0-dev"
+    echo ""
+    echo "  GTK & GUI:"
+    echo "    - libgtk-3-dev, libgtk-4-dev, libgdk-pixbuf2.0-dev, libglib2.0-dev, libcairo2-dev"
+    echo "    - libpango1.0-dev, libatk1.0-dev, libharfbuzz-dev, libfontconfig1-dev, libfreetype6-dev"
+    echo ""
+    echo "  WebKit & Browser:"
+    echo "    - libwebkit2gtk-4.1-dev, libjavascriptcoregtk-4.1-dev, libsoup-3.0-dev"
+    echo ""
+    echo "  Image & Graphics:"
+    echo "    - libimlib2-dev, libjpeg-dev, libpng-dev, libtiff-dev, librsvg2-dev"
+    echo ""
+    echo "  Terminal:"
+    echo "    - libvte-2.91-dev, libpcre2-dev"
+    echo ""
+    echo "  Sound & Audio:"
+    echo "    - alsa-utils, libasound2-dev, libpulse-dev, pulseaudio, pavucontrol"
+    echo ""
+    echo "  System Monitoring:"
+    echo "    - libgtop2-dev, libprocps-dev, libsensors-dev"
+    echo ""
+    echo "  Network:"
+    echo "    - libnm-dev, libnl-3-dev"
+    echo ""
+    echo "  Utilities:"
+    echo "    - xorg, xserver-xephyr, x11-utils, x11-xserver-utils, xinit, xterm, xdotool, wmctrl, x11vnc"
+    echo "    - curl, wget, nano, vim, htop"
+    echo ""
     exit 1
 }
 
@@ -535,14 +581,6 @@ verify_installations() {
         fi
     }
     
-    check_header() {
-        if [ -f "/usr/include/$1" ] || [ -f "/usr/local/include/$1" ]; then
-            print_success "Found $1"
-        else
-            print_warning "Could not verify $1"
-        fi
-    }
-    
     # Critical packages
     check_pkg "x11"
     check_pkg "gtk+-3.0"
@@ -553,6 +591,8 @@ verify_installations() {
     check_pkg "vte-2.91" || check_pkg "vte-2.90"
     check_pkg "libnm" || print_warning "NetworkManager development library not found"
     check_pkg "libgtop-2.0" || print_warning "libgtop not found"
+    check_pkg "libpulse" || print_warning "PulseAudio development library not found"
+    check_pkg "alsa" || print_warning "ALSA development library not found"
     
     # Check for executables
     check_cmd() {
@@ -567,6 +607,9 @@ verify_installations() {
     check_cmd "make"
     check_cmd "pkg-config"
     check_cmd "cmake"
+    check_cmd "amixer"
+    check_cmd "speaker-test"
+    check_cmd "xrandr"
     
     print_success "Verification complete"
 }

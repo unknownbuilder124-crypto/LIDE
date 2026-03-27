@@ -7,7 +7,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include "display/displaySettings.h"
-
+#include "sound/sound.h"
 
 // static int is_dragging = 0;
 // static int drag_start_x, drag_start_y;
@@ -198,18 +198,6 @@ static GtkWidget *network_tab_new(void)
     return box;
 }
 
-static GtkWidget *sound_tab_new(void)
-
-{
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 20);
-    
-    GtkWidget *label = gtk_label_new("Sound settings not implemented yet.");
-    gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
-    
-    return box;
-}
-
 static GtkWidget *power_tab_new(void)
 
 {
@@ -284,7 +272,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     state->window_start_y = 0;
     
     gtk_window_set_title(GTK_WINDOW(state->window), "BlackLine Settings");
-    gtk_window_set_default_size(GTK_WINDOW(state->window), 700, 500);
+    gtk_window_set_default_size(GTK_WINDOW(state->window), 750, 550);
+    gtk_window_set_resizable(GTK_WINDOW(state->window), TRUE);
     
     // Get monitor geometry for positioning below panel
     GdkDisplay *display = gdk_display_get_default();
@@ -340,9 +329,17 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), sep, FALSE, FALSE, 0);
     
+    // Create a scrolled window for the notebook content
+    GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
+                                   GTK_POLICY_NEVER,      // No horizontal scrollbar
+                                   GTK_POLICY_AUTOMATIC); // Vertical scrollbar when needed
+    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 400);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 5);
+    
     // Notebook for tabs
     state->notebook = gtk_notebook_new();
-    gtk_box_pack_start(GTK_BOX(vbox), state->notebook, TRUE, TRUE, 10);
+    gtk_container_add(GTK_CONTAINER(scrolled_window), state->notebook);
     
     // Add tabs
     gtk_notebook_append_page(GTK_NOTEBOOK(state->notebook),
@@ -411,7 +408,13 @@ static void activate(GtkApplication *app, gpointer user_data)
         "notebook tab { background-color: #1a1e24; color: #ffffff; }"
         "notebook tab:checked { background-color: #00ff88; color: #0b0f14; }"
         "statusbar { background-color: #0b0f14; color: #00ff88; }"
-        "frame { border-color: #2a323a; }",
+        "frame { border-color: #2a323a; }"
+        "scrolledwindow { border: none; background-color: #0b0f14; }"
+        "scrollbar { background-color: #1e2429; }"
+        "scrollbar slider { background-color: #62316b; border-radius: 4px; min-width: 8px; min-height: 8px; }"
+        "scrollbar slider:hover { background-color: #7a3b8b; }"
+        "scrollbar slider:active { background-color: #9a4bab; }"
+        "scrollbar trough { background-color: #2a323a; border-radius: 4px; }",
         -1, NULL);
         
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),

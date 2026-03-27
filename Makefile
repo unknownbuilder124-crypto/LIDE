@@ -5,6 +5,7 @@ GTK_LIBS = $(shell pkg-config --libs gtk+-3.0)
 X11_LIBS = -lX11
 MATH_LIBS = -lm
 IMLIB2_LIBS = -lImlib2
+PULSE_LIBS = -lpulse -lpulse-mainloop-glib
 
 # VTE detection for terminal
 VTE_PKG := $(shell pkg-config --exists vte-2.91 && echo vte-2.91)
@@ -52,17 +53,30 @@ NETWORK_STATS_H = panel/network_stats.h
 IMAGE_VIEWER_SOURCES = tools/image-viewer/image-viewer.c
 IMAGE_VIEWER_TARGET = blackline-image-viewer
 
-# Settings tool sources
+# Settings tool sources with sound settings
 SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/display/display_settings.c \
                    tools/settings/display/orientation.c \
                    tools/settings/display/refresh_rate.c \
-                   tools/settings/display/resolution.c
+                   tools/settings/display/resolution.c \
+                   tools/settings/sound/sound_tab.c \
+                   tools/settings/sound/test_sound_tab.c \
+                   tools/settings/sound/output/output_volume.c \
+                   tools/settings/sound/output/show_output_device.c \
+                   tools/settings/sound/input/input_volume.c \
+                   tools/settings/sound/input/show_input_device.c \
+                   tools/settings/sound/sounds/volume_levels.c \
+                   tools/settings/sound/sounds/alern_sounds.c
 
 SETTINGS_HEADERS = tools/settings/display/displaySettings.h \
                    tools/settings/display/orientation.h \
                    tools/settings/display/refresh_rate.h \
-                   tools/settings/display/resolution.h
+                   tools/settings/display/resolution.h \
+                   tools/settings/sound/sound.h \
+                   tools/settings/sound/test_sound_tab.h \
+                   tools/settings/sound/output/output.h \
+                   tools/settings/sound/input/input.h \
+                   tools/settings/sound/sounds/sound.h
 
 SETTINGS_TARGET = blackline-settings
 
@@ -164,11 +178,14 @@ blackline-system-monitor: $(SYSMON_SOURCES) $(SYSMON_HEADERS)
 $(IMAGE_VIEWER_TARGET): $(IMAGE_VIEWER_SOURCES)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(IMAGE_VIEWER_SOURCES) $(GTK_LIBS)
 
-# Settings Tool
+# Settings Tool with PulseAudio sound settings and math library
 $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/display
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS)
-	@echo "Built Settings tool with Display tab"
+	mkdir -p tools/settings/sound/output
+	mkdir -p tools/settings/sound/input
+	mkdir -p tools/settings/sound/sounds
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm
+	@echo "Built Settings tool with Display and Sound tabs"
 
 # Terminal
 ifeq ($(HAVE_VTE),yes)
@@ -254,44 +271,178 @@ clean:
 	      $(SETTINGS_TARGET)
 	rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o \
 	      tools/terminal/*.o launcher/*.o session/*.o tools/image-viewer/*.o \
-	      tools/settings/*.o tools/settings/display/*.o tools/file-manager/*.o
+	      tools/settings/*.o tools/settings/display/*.o tools/settings/sound/*.o \
+	      tools/settings/sound/output/*.o tools/settings/sound/input/*.o \
+	      tools/settings/sound/sounds/*.o tools/file-manager/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
 
-# Help
-help:
-	@echo "Blackline Desktop Environment - Makefile"
-	@echo ""
-	@echo "Available targets:"
-	@echo "  make              - Build all components"
-	@echo "  make clean        - Remove all binaries and object files"
-	@echo ""
-	@echo "Components built:"
-	@echo "  - blackline-wm           (Window Manager)"
-	@echo "  - blackline-panel        (System Panel with WiFi, Network stats, Clock)"
-	@echo "  - blackline-launcher     (Application Launcher)"
-	@echo "  - blackline-tools        (Tools Container with dynamic app detection)"
-	@echo "  - blackline-background   (Background Setter)"
-	@echo "  - blackline-fm           (File Manager with Trash support)"
-	@echo "  - blackline-editor       (Text Editor)"
-	@echo "  - blackline-calculator   (Calculator)"
-	@echo "  - blackline-system-monitor (System Monitor)"
-	@echo "  - blackline-terminal     (Terminal Emulator)"
-	@echo "  - blackline-image-viewer (Image Viewer)"
-	@echo "  - blackline-settings     (Settings Tool)"
-	@echo "  - voidfox                (Web Browser)"
-	@echo "  - firefox-wrapper        (Firefox Wrapper)"
-	@echo ""
-	@echo "Features:"
-	@echo "  - Tools container automatically detects installed applications from /usr/share/applications/"
-	@echo "  - File manager with trash support (deleted files go to ~/.local/share/Trash)"
-	@echo "  - Right-click context menu with file operations (Cut, Copy, Paste, Delete, Properties)"
-	@echo "  - Empty Trash option when right-clicking on Trash directory"
-	@echo "  - Window manager with Imlib2 wallpaper support"
-	@echo "  - Panel with CPU, RAM, network speeds, WiFi scanning, and date/time"
-	@echo "  - Settings tool with display configuration (orientation, resolution, refresh rate)"
-	@echo "  - VoidFox web browser with tabs, bookmarks, history, and downloads"
-	@echo "  - Image viewer with crop, rotate, flip, and zoom features"
-	@echo ""
+# Clean all (including generated headers)
+distclean: clean
+	rm -f $(NETWORK_STATS_H)
+	rm -f panel/*.gch tools/*.gch tools/settings/*.gch tools/settings/display/*.gch \
+	      tools/settings/sound/*.gch tools/settings/sound/output/*.gch \
+	      tools/settings/sound/input/*.gch tools/settings/sound/sounds/*.gch
+	@echo "Removed generated header files"
 
-.PHONY: all clean help
+# Install all binaries
+install: all
+	sudo cp blackline-wm /usr/local/bin/
+	sudo cp blackline-panel /usr/local/bin/
+	sudo cp blackline-launcher /usr/local/bin/
+	sudo cp blackline-tools /usr/local/bin/
+	sudo cp blackline-background /usr/local/bin/
+	sudo cp blackline-fm /usr/local/bin/
+	sudo cp blackline-editor /usr/local/bin/
+	sudo cp blackline-calculator /usr/local/bin/
+	sudo cp blackline-system-monitor /usr/local/bin/
+	sudo cp $(IMAGE_VIEWER_TARGET) /usr/local/bin/
+	sudo cp $(SETTINGS_TARGET) /usr/local/bin/
+	sudo cp voidfox /usr/local/bin/
+	sudo cp $(FIREFOX_WRAPPER) /usr/local/bin/lide-firefox
+	-test -f blackline-terminal && sudo cp blackline-terminal /usr/local/bin/
+	-test -f blackline-session && sudo cp blackline-session /usr/local/bin/
+	@echo "Installation complete!"
+
+# Uninstall all binaries
+uninstall:
+	sudo rm -f /usr/local/bin/blackline-wm
+	sudo rm -f /usr/local/bin/blackline-panel
+	sudo rm -f /usr/local/bin/blackline-launcher
+	sudo rm -f /usr/local/bin/blackline-tools
+	sudo rm -f /usr/local/bin/blackline-background
+	sudo rm -f /usr/local/bin/blackline-fm
+	sudo rm -f /usr/local/bin/blackline-editor
+	sudo rm -f /usr/local/bin/blackline-calculator
+	sudo rm -f /usr/local/bin/blackline-system-monitor
+	sudo rm -f /usr/local/bin/$(IMAGE_VIEWER_TARGET)
+	sudo rm -f /usr/local/bin/$(SETTINGS_TARGET)
+	sudo rm -f /usr/local/bin/voidfox
+	sudo rm -f /usr/local/bin/lide-firefox
+	sudo rm -f /usr/local/bin/blackline-terminal
+	sudo rm -f /usr/local/bin/blackline-session
+	rm -f ~/.config/blackline/tools_view_mode.conf
+	@echo "Uninstallation complete!"
+
+# Run commands
+run-editor: blackline-editor
+	./blackline-editor
+
+run-wm: blackline-wm
+	./blackline-wm
+
+run-calculator: blackline-calculator
+	./blackline-calculator
+
+run-system-monitor: blackline-system-monitor
+	./blackline-system-monitor
+
+run-voidfox: voidfox
+	./voidfox
+
+run-firefox: firefox-wrapper
+	./$(FIREFOX_WRAPPER)
+
+run-terminal: blackline-terminal
+	./blackline-terminal
+
+run-panel: blackline-panel
+	./blackline-panel
+
+run-launcher: blackline-launcher
+	./blackline-launcher
+
+run-tools: blackline-tools
+	./blackline-tools
+
+run-fm: blackline-fm
+	./blackline-fm
+
+run-image-viewer: $(IMAGE_VIEWER_TARGET)
+	./$(IMAGE_VIEWER_TARGET) $(ARGS)
+
+run-settings: $(SETTINGS_TARGET)
+	./$(SETTINGS_TARGET)
+
+run-session: blackline-session
+	./blackline-session
+
+# WebKit dependency check
+check-webkit:
+	@echo "Checking WebKitGTK installation..."
+	@if pkg-config --exists webkit2gtk-4.1; then \
+		echo "✓ WebKitGTK 4.1 found: $$(pkg-config --modversion webkit2gtk-4.1)"; \
+	elif pkg-config --exists webkit2gtk-4.0; then \
+		echo "✓ WebKitGTK 4.0 found: $$(pkg-config --modversion webkit2gtk-4.0)"; \
+	else \
+		echo "✗ WebKitGTK not found!"; \
+		echo "  On Debian/Ubuntu: sudo apt install libwebkit2gtk-4.0-dev"; \
+		echo "  On Kali Linux: sudo apt install libwebkit2gtk-4.1-dev"; \
+		echo "  On Fedora: sudo dnf install webkit2gtk3-devel"; \
+		echo "  On Arch: sudo pacman -S webkit2gtk"; \
+	fi
+
+# Firefox check
+check-firefox:
+	@echo "Checking Firefox installation..."
+	@if command -v firefox >/dev/null 2>&1; then \
+		echo "✓ Firefox found: $$(firefox --version | head -1)"; \
+	elif command -v firefox-esr >/dev/null 2>&1; then \
+		echo "✓ Firefox ESR found: $$(firefox-esr --version | head -1)"; \
+	else \
+		echo "✗ Firefox not found!"; \
+		echo "  Install with: sudo apt install firefox"; \
+		echo "  or: sudo apt install firefox-esr"; \
+	fi
+
+# VTE check
+check-vte:
+	@echo "Checking VTE installation..."
+	@if pkg-config --exists vte-2.91; then \
+		echo "✓ VTE 2.91 found: $$(pkg-config --modversion vte-2.91)"; \
+	else \
+		echo "✗ VTE not found!"; \
+		echo "  Install with: sudo apt install libvte-2.91-dev"; \
+	fi
+
+# Imlib2 check
+check-imlib2:
+	@echo "Checking Imlib2 installation..."
+	@if pkg-config --exists imlib2; then \
+		echo "✓ Imlib2 found: $$(pkg-config --modversion imlib2)"; \
+	else \
+		echo "✗ Imlib2 not found!"; \
+		echo "  Install with: sudo apt install libimlib2-dev"; \
+		echo "  On Fedora: sudo dnf install imlib2-devel"; \
+		echo "  On Arch: sudo pacman -S imlib2"; \
+	fi
+
+# NetworkManager check
+check-network:
+	@echo "Checking NetworkManager installation..."
+	@if pkg-config --exists libnm; then \
+		echo "✓ NetworkManager found: $$(pkg-config --modversion libnm)"; \
+	else \
+		echo "✗ NetworkManager not found!"; \
+		echo "  Install with: sudo apt install libnm-dev"; \
+	fi
+
+# PulseAudio check
+check-pulseaudio:
+	@echo "Checking PulseAudio installation..."
+	@if pkg-config --exists libpulse; then \
+		echo "✓ PulseAudio found: $$(pkg-config --modversion libpulse)"; \
+	else \
+		echo "✗ PulseAudio not found!"; \
+		echo "  Install with: sudo apt install libpulse-dev"; \
+	fi
+
+# Check all dependencies
+check-all: check-webkit check-firefox check-vte check-imlib2 check-network check-pulseaudio
+	@echo ""
+	@echo "All dependency checks complete!"
+
+.PHONY: all clean distclean install uninstall run-editor run-wm run-calculator run-system-monitor \
+        run-voidfox run-firefox run-terminal run-panel run-launcher run-tools run-fm run-image-viewer \
+        run-settings run-session check-webkit check-firefox check-vte check-imlib2 check-network \
+        check-pulseaudio check-all
