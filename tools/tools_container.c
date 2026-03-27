@@ -613,7 +613,7 @@ static void start_slide_animation(GtkWindow *window, int target_x, int target_y,
  * Application activation callback.
  *
  * Creates the main window, sets up UI components, applies CSS styling,
- * and initializes the tools container with both static and detected apps.
+ * and initializes the tools container.
  */
 static void activate(GtkApplication *app, gpointer user_data) 
 {
@@ -623,19 +623,16 @@ static void activate(GtkApplication *app, gpointer user_data)
     
     gtk_window_set_title(GTK_WINDOW(window), "BlackLine Tools");
     
-    // Detect installed applications from system
-    int detected_count = 0;
-    DetectedApp *detected = detect_installed_apps(&detected_count);
-    
-    // Merge static tools with detected applications
-    int total_tools = 0;
-    ToolItem *all_tools = merge_tool_items(static_tools, num_static_tools, 
-                                           detected, detected_count,
-                                           window, &total_tools);
-    
-    // Print debug info
-    g_print("Loaded %d static tools, found %d detected apps, total: %d\n", 
-            num_static_tools, detected_count, total_tools);
+    // Use only static tools
+    int total_tools = num_static_tools;
+    ToolItem *all_tools = g_malloc(sizeof(ToolItem) * total_tools);
+    for (int i = 0; i < total_tools; i++) {
+        all_tools[i].name = g_strdup(static_tools[i].name);
+        all_tools[i].icon = g_strdup(static_tools[i].icon);
+        all_tools[i].button_callback = static_tools[i].button_callback;
+        all_tools[i].event_callback = static_tools[i].event_callback;
+        all_tools[i].user_data = static_tools[i].user_data;
+    }
     
     // Compute full‑screen margins and target size
     GdkDisplay *display = gdk_display_get_default();
@@ -688,14 +685,14 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), sep, FALSE, FALSE, 5);
     
-    // Scrolled window with proper scrollbar styling
+    // Scrolled window with scrollbar (AUTOMATIC for both directions)
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
-                                   GTK_POLICY_NEVER,
+                                   GTK_POLICY_AUTOMATIC,
                                    GTK_POLICY_AUTOMATIC);
     gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scrolled_window), 400);
     
-    // Create container with all tools (static + detected)
+    // Create container with tools
     GtkWidget *tools_container = create_tools_container(all_tools, total_tools, window);
     gtk_container_add(GTK_CONTAINER(scrolled_window), tools_container);
     gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 0);
@@ -707,15 +704,15 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *bottom_spacer = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(vbox), bottom_spacer, TRUE, TRUE, 0);
     
-    // CSS for styling
+    // CSS for styling with zoom effect on click
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
         "window { background-color: #0b0f14; color: #ffffff; border: 1px solid #62316b; }"
         "button { background-color: #1e2429; color: #62316b; border: none; }"
         "button:hover { background-color: #2a323a; }"
         "button:active { background-color: #2a323a; }"
-        "#tool-item { background-color: transparent; border: none; }"
-        "#tool-item:hover { background-color: rgba(30, 36, 41, 0.6); border-radius: 12px; }"
+        "#tool-item { background-color: transparent; border: none; transition: all 0.1s ease-out; }"
+        "#tool-item:active { transform: scale(0.95); }"
         "label { color: #ffffff; }"
         "scrolledwindow { border: none; background-color: #0b0f14; }"
         "scrollbar { background-color: #1e2429; }"
@@ -736,9 +733,8 @@ static void activate(GtkApplication *app, gpointer user_data)
     // Start slide‑in animation after window is visible
     start_slide_animation(GTK_WINDOW(window), target_x, target_y, -target_height);
     
-    // Clean up detected apps and merged tools
-    free_detected_apps(detected, detected_count);
-    for (int i = num_static_tools; i < total_tools; i++) {
+    // Clean up merged tools
+    for (int i = 0; i < total_tools; i++) {
         g_free(all_tools[i].name);
         g_free(all_tools[i].icon);
     }
