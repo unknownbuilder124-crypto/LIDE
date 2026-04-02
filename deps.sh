@@ -123,39 +123,30 @@ install_debian() {
         libxcb-randr0-dev \
         libxcb-shape0-dev \
         libxcb-xinerama0-dev \
-        libxcb-xkb-dev \
-        libxcb-xrm-dev
+        libxcb-xkb-dev
 
     # GTK and GUI dependencies
     apt-get install -y \
         libgtk-3-dev \
-        libgtk-4-dev \
         libgdk-pixbuf2.0-dev \
         libglib2.0-dev \
         libcairo2-dev \
         libpango1.0-dev \
         libatk1.0-dev \
-        libgdk-pixbuf-2.0-dev \
         libharfbuzz-dev \
         libfontconfig1-dev \
         libfreetype6-dev \
-        libepoxy-dev \
-        libwayland-dev \
-        libxkbcommon-dev \
-        libegl1-mesa-dev \
-        libgles2-mesa-dev
+        libepoxy-dev
 
-    # WebKit and browser dependencies
+    # WebKitGTK (critical for browser)
     apt-get install -y \
         libwebkit2gtk-4.1-dev \
-        libwebkit2gtk-4.0-dev \
         libjavascriptcoregtk-4.1-dev \
         libsoup-3.0-dev \
-        libsoup2.4-dev \
         libgcrypt20-dev \
         libsecret-1-dev
 
-    # Image and graphics libraries
+    # Image and graphics libraries (Imlib2 for WM wallpaper)
     apt-get install -y \
         libimlib2-dev \
         libjpeg-dev \
@@ -163,22 +154,16 @@ install_debian() {
         libtiff-dev \
         libgif-dev \
         libwebp-dev \
-        librsvg2-dev \
-        libopenjp2-7-dev \
-        libjbig-dev \
-        liblzma-dev
+        librsvg2-dev
 
     # Terminal dependencies (VTE)
     apt-get install -y \
         libvte-2.91-dev \
-        libvte-2.91-gtk3-dev \
         libpcre2-dev
 
     # System monitoring
     apt-get install -y \
         libgtop2-dev \
-        liblmdb-dev \
-        libsystemd-dev \
         libprocps-dev \
         libsensors-dev \
         libudev-dev
@@ -189,32 +174,34 @@ install_debian() {
         libnl-3-dev \
         libnl-genl-3-dev
 
-    # ALSA and PulseAudio for sound settings
+    # PulseAudio (critical for sound settings)
     apt-get install -y \
-        alsa-utils \
-        libasound2-dev \
         libpulse-dev \
         pulseaudio \
         pavucontrol \
+        alsa-utils \
+        libasound2-dev \
         speaker-test
 
-    # Utilities
+    # Xephyr (critical for testing)
     apt-get install -y \
-        xorg \
         xserver-xephyr \
+        xorg \
         x11-utils \
         x11-xserver-utils \
         xinit \
         xterm \
         xdotool \
-        wmctrl \
-        x11vnc \
-        xvfb \
+        wmctrl
+
+    # Utilities
+    apt-get install -y \
         curl \
         wget \
         nano \
         vim \
-        htop
+        htop \
+        feh
 
     print_success "Debian/Ubuntu/Kali dependencies installed"
 }
@@ -264,7 +251,6 @@ install_fedora() {
     # GTK and GUI dependencies
     dnf install -y \
         gtk3-devel \
-        gtk4-devel \
         gdk-pixbuf2-devel \
         glib2-devel \
         cairo-devel \
@@ -273,21 +259,17 @@ install_fedora() {
         harfbuzz-devel \
         fontconfig-devel \
         freetype-devel \
-        libepoxy-devel \
-        wayland-devel \
-        libxkbcommon-devel
+        libepoxy-devel
 
-    # WebKit and browser dependencies
+    # WebKitGTK (critical for browser)
     dnf install -y \
         webkit2gtk4.1-devel \
-        webkit2gtk4.0-devel \
         javascriptcoregtk4.1-devel \
         libsoup3-devel \
-        libsoup-devel \
         libgcrypt-devel \
         libsecret-devel
 
-    # Image and graphics libraries
+    # Image and graphics libraries (Imlib2 for WM wallpaper)
     dnf install -y \
         imlib2-devel \
         libjpeg-turbo-devel \
@@ -295,20 +277,16 @@ install_fedora() {
         libtiff-devel \
         giflib-devel \
         libwebp-devel \
-        librsvg2-devel \
-        openjpeg2-devel
+        librsvg2-devel
 
     # Terminal dependencies
     dnf install -y \
         vte291-devel \
-        vte-profile \
         pcre2-devel
 
     # System monitoring
     dnf install -y \
         libgtop2-devel \
-        lmdb-devel \
-        systemd-devel \
         procps-ng-devel \
         lm_sensors-devel \
         libudev-devel
@@ -318,30 +296,31 @@ install_fedora() {
         NetworkManager-libnm-devel \
         libnl3-devel
 
-    # ALSA and PulseAudio
+    # PulseAudio (critical for sound settings)
     dnf install -y \
-        alsa-utils \
-        alsa-lib-devel \
         pulseaudio-libs-devel \
         pulseaudio \
         pavucontrol \
-        alsa-plugins-pulseaudio
+        alsa-utils \
+        alsa-lib-devel
 
-    # Utilities
+    # Xephyr (critical for testing)
     dnf install -y \
         xorg-x11-server-Xephyr \
         xorg-x11-utils \
         xorg-x11-xinit \
         xterm \
         xdotool \
-        wmctrl \
-        x11vnc \
-        xorg-x11-server-Xvfb \
+        wmctrl
+
+    # Utilities
+    dnf install -y \
         curl \
         wget \
         nano \
         vim \
-        htop
+        htop \
+        feh
 
     print_success "Fedora dependencies installed"
 }
@@ -391,7 +370,6 @@ install_arch() {
     # GTK and GUI dependencies
     pacman -S --noconfirm \
         gtk3 \
-        gtk4 \
         gdk-pixbuf2 \
         glib2 \
         cairo \
@@ -400,21 +378,18 @@ install_arch() {
         harfbuzz \
         fontconfig \
         freetype2 \
-        libepoxy \
-        wayland \
-        libxkbcommon
+        libepoxy
 
-    # WebKit and browser dependencies
+    # WebKitGTK (critical for browser)
     pacman -S --noconfirm \
         webkit2gtk \
         webkit2gtk-4.1 \
         javascriptcoregtk \
         libsoup3 \
-        libsoup \
         libgcrypt \
         libsecret
 
-    # Image and graphics libraries
+    # Image and graphics libraries (Imlib2 for WM wallpaper)
     pacman -S --noconfirm \
         imlib2 \
         libjpeg-turbo \
@@ -422,20 +397,16 @@ install_arch() {
         libtiff \
         giflib \
         libwebp \
-        librsvg \
-        openjpeg2
+        librsvg
 
     # Terminal dependencies
     pacman -S --noconfirm \
         vte3 \
-        vte-common \
         pcre2
 
     # System monitoring
     pacman -S --noconfirm \
         libgtop \
-        lmdb \
-        systemd-libs \
         procps-ng \
         lm_sensors \
         libudev0-shim
@@ -446,30 +417,32 @@ install_arch() {
         libnm \
         libnl
 
-    # ALSA and PulseAudio
+    # PulseAudio (critical for sound settings)
     pacman -S --noconfirm \
-        alsa-utils \
-        alsa-lib \
         pulseaudio \
         pulseaudio-alsa \
         pavucontrol \
+        alsa-utils \
+        alsa-lib \
         libpulse
 
-    # Utilities
+    # Xephyr (critical for testing)
     pacman -S --noconfirm \
         xorg-server-xephyr \
         xorg-xrandr \
         xorg-xinit \
         xterm \
         xdotool \
-        wmctrl \
-        x11vnc \
-        xorg-server-xvfb \
+        wmctrl
+
+    # Utilities
+    pacman -S --noconfirm \
         curl \
         wget \
         nano \
         vim \
-        htop
+        htop \
+        feh
 
     print_success "Arch Linux dependencies installed"
 }
@@ -500,7 +473,6 @@ install_macos() {
         gdb \
         libx11 \
         gtk+3 \
-        gtk+4 \
         glib \
         cairo \
         pango \
@@ -513,21 +485,24 @@ install_macos() {
         libtiff \
         librsvg \
         vte \
-        alsa-utils \
         pulseaudio \
-        curl \
-        wget \
-        nano \
-        vim \
-        htop
+        feh
 
     print_success "macOS dependencies installed (partial)"
+    print_warning "Xephyr is not available on macOS. Use XQuartz instead."
 }
 
 # Install dependencies for unknown OS
 install_unknown() {
     print_error "Unknown operating system. Please install dependencies manually."
     print_status "Required packages:"
+    echo ""
+    echo "  CRITICAL (must have):"
+    echo "    - WebKitGTK (libwebkit2gtk-4.1-dev or webkit2gtk4.1-devel)"
+    echo "    - PulseAudio (libpulse-dev, pulseaudio, pavucontrol)"
+    echo "    - Xephyr (xserver-xephyr or xorg-x11-server-Xephyr)"
+    echo "    - feh (wallpaper setter)"
+    echo "    - Imlib2 (libimlib2-dev or imlib2-devel)"
     echo ""
     echo "  Core Development:"
     echo "    - build-essential, gcc, make, cmake, pkg-config, autoconf, automake, libtool, meson, ninja-build"
@@ -538,20 +513,14 @@ install_unknown() {
     echo "    - libxcb1-dev, libxcb-util0-dev, libxcb-icccm4-dev, libxcb-keysyms1-dev, libxcb-randr0-dev"
     echo ""
     echo "  GTK & GUI:"
-    echo "    - libgtk-3-dev, libgtk-4-dev, libgdk-pixbuf2.0-dev, libglib2.0-dev, libcairo2-dev"
+    echo "    - libgtk-3-dev, libgdk-pixbuf2.0-dev, libglib2.0-dev, libcairo2-dev"
     echo "    - libpango1.0-dev, libatk1.0-dev, libharfbuzz-dev, libfontconfig1-dev, libfreetype6-dev"
     echo ""
-    echo "  WebKit & Browser:"
-    echo "    - libwebkit2gtk-4.1-dev, libjavascriptcoregtk-4.1-dev, libsoup-3.0-dev"
-    echo ""
     echo "  Image & Graphics:"
-    echo "    - libimlib2-dev, libjpeg-dev, libpng-dev, libtiff-dev, librsvg2-dev"
+    echo "    - libjpeg-dev, libpng-dev, libtiff-dev, librsvg2-dev"
     echo ""
     echo "  Terminal:"
     echo "    - libvte-2.91-dev, libpcre2-dev"
-    echo ""
-    echo "  Sound & Audio:"
-    echo "    - alsa-utils, libasound2-dev, libpulse-dev, pulseaudio, pavucontrol"
     echo ""
     echo "  System Monitoring:"
     echo "    - libgtop2-dev, libprocps-dev, libsensors-dev"
@@ -560,13 +529,13 @@ install_unknown() {
     echo "    - libnm-dev, libnl-3-dev"
     echo ""
     echo "  Utilities:"
-    echo "    - xorg, xserver-xephyr, x11-utils, x11-xserver-utils, xinit, xterm, xdotool, wmctrl, x11vnc"
+    echo "    - xorg, x11-utils, x11-xserver-utils, xinit, xterm, xdotool, wmctrl"
     echo "    - curl, wget, nano, vim, htop"
     echo ""
     exit 1
 }
 
-# Verify installations
+# Verify critical installations
 verify_installations() {
     print_status "Verifying critical installations..."
     
@@ -581,18 +550,46 @@ verify_installations() {
         fi
     }
     
-    # Critical packages
+    # CRITICAL: WebKitGTK
+    if check_pkg "webkit2gtk-4.1" || check_pkg "webkit2gtk-4.0"; then
+        print_success "WebKitGTK found"
+    else
+        print_error "WebKitGTK NOT FOUND! Browser will not work."
+    fi
+    
+    # CRITICAL: PulseAudio
+    if check_pkg "libpulse"; then
+        print_success "PulseAudio found"
+    else
+        print_warning "PulseAudio not found - sound settings may not work"
+    fi
+    
+    # CRITICAL: Xephyr
+    if command -v Xephyr &> /dev/null; then
+        print_success "Xephyr found"
+    else
+        print_error "Xephyr NOT FOUND! Testing will not work."
+    fi
+    
+    # CRITICAL: feh
+    if command -v feh &> /dev/null; then
+        print_success "feh found"
+    else
+        print_warning "feh not found - wallpaper may not work"
+    fi
+    
+    # CRITICAL: Imlib2
+    check_pkg "imlib2"
+    
+    # Other packages
     check_pkg "x11"
     check_pkg "gtk+-3.0"
-    check_pkg "webkit2gtk-4.1" || check_pkg "webkit2gtk-4.0"
     check_pkg "glib-2.0"
     check_pkg "cairo"
-    check_pkg "imlib2"
-    check_pkg "vte-2.91" || check_pkg "vte-2.90"
-    check_pkg "libnm" || print_warning "NetworkManager development library not found"
-    check_pkg "libgtop-2.0" || print_warning "libgtop not found"
-    check_pkg "libpulse" || print_warning "PulseAudio development library not found"
-    check_pkg "alsa" || print_warning "ALSA development library not found"
+    check_pkg "vte-2.91"
+    check_pkg "libnm"
+    check_pkg "libgtop-2.0"
+    check_pkg "alsa"
     
     # Check for executables
     check_cmd() {
@@ -607,6 +604,7 @@ verify_installations() {
     check_cmd "make"
     check_cmd "pkg-config"
     check_cmd "cmake"
+    check_cmd "pulseaudio"
     check_cmd "amixer"
     check_cmd "speaker-test"
     check_cmd "xrandr"
