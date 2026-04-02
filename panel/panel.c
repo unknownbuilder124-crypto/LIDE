@@ -16,6 +16,9 @@
 #include "upload.h"
 #include "download.h"
 
+/* Debounce timer for brightness slider */
+static guint brightness_timeout_id = 0;
+
 /* Define HISTORY_SIZE before using it */
 #define HISTORY_SIZE 60
 
@@ -23,19 +26,6 @@
 #include "../tools/system-monitor/monitor.h"
 
 /* Define the global variables expected by the system monitor code */
-
-/*
- * panel.c
- * 
- * System panel implementation with status indicators
-GTK-based taskbar with clock, battery meter, WiFi indicator, and network
-stats display. Polls sysfs for power state and nmcli for network status.
- *
- * This module is part of the LIDE desktop environment system.
- * See the main window manager (wm/) and session management (session/)
- * for system architecture overview.
- */
-
 double cpu_history[HISTORY_SIZE] = {0};
 int cpu_history_index = 0;
 double mem_history[HISTORY_SIZE] = {0};
@@ -83,6 +73,9 @@ void refresh_wifi_network_list(GtkWidget *window);
 
 /* Forward declaration for WiFi connection callback */
 static void on_wifi_network_clicked(GtkButton *btn, gpointer data);
+
+/* Forward declaration for set_brightness function */
+static void set_brightness(int level);
 
 /* ====================
  * BATTERY FUNCTIONS
@@ -583,7 +576,22 @@ static void set_brightness(int level)
 }
 
 /**
+ * Timeout callback to apply brightness after debouncing.
+ *
+ * @param brightness Level as gpointer (cast to int).
+ * @return G_SOURCE_REMOVE to run only once.
+ */
+static gboolean set_brightness_timeout(gpointer brightness)
+{
+    int level = GPOINTER_TO_INT(brightness);
+    set_brightness(level);
+    brightness_timeout_id = 0;
+    return G_SOURCE_REMOVE;
+}
+
+/**
  * Callback for brightness slider value changes.
+ * Uses a timeout to debounce rapid changes and prevent scroll conflicts.
  *
  * @param scale      The GtkScale widget.
  * @param user_data  User data (unused).
@@ -591,8 +599,15 @@ static void set_brightness(int level)
 static void on_brightness_changed(GtkScale *scale, gpointer user_data)
 {
     (void)user_data;
+    
+    /* Cancel previous timeout if exists */
+    if (brightness_timeout_id > 0) {
+        g_source_remove(brightness_timeout_id);
+    }
+    
+    /* Schedule brightness change after 50ms to debounce */
     int brightness = (int)gtk_range_get_value(GTK_RANGE(scale));
-    set_brightness(brightness);
+    brightness_timeout_id = g_timeout_add(50, set_brightness_timeout, GINT_TO_POINTER(brightness));
 }
 
 /**
@@ -872,33 +887,64 @@ static void launch_network_tab(GtkButton *button, gpointer data)
     /* Create new network status window */
     network_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(network_window), "Settings");
-    gtk_window_set_default_size(GTK_WINDOW(network_window), 350, 500);
+    gtk_window_set_default_size(GTK_WINDOW(network_window), 380, 550);
     gtk_window_set_decorated(GTK_WINDOW(network_window), TRUE);
     gtk_window_set_type_hint(GTK_WINDOW(network_window), GDK_WINDOW_TYPE_HINT_DIALOG);
     gtk_window_set_keep_above(GTK_WINDOW(network_window), TRUE);
     gtk_window_set_modal(GTK_WINDOW(network_window), FALSE);
     gtk_window_set_transient_for(GTK_WINDOW(network_window), NULL);
+    gtk_window_set_resizable(GTK_WINDOW(network_window), TRUE);
     
     /* Position at top-right corner (below network button) */
     GdkDisplay *gdisplay = gdk_display_get_default();
     GdkMonitor *monitor = gdk_display_get_primary_monitor(gdisplay);
     GdkRectangle geom;
     gdk_monitor_get_geometry(monitor, &geom);
-    gtk_window_move(GTK_WINDOW(network_window), geom.width - 350, geom.y + 40);
+    gtk_window_move(GTK_WINDOW(network_window), geom.width - 380, geom.y + 40);
     
     g_signal_connect(network_window, "destroy", G_CALLBACK(on_network_window_destroy), NULL);
     
     /* Apply CSS only to this window */
     apply_network_window_css(network_window);
     
-    /* Main scrollable container */
-    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_container_add(GTK_CONTAINER(network_window), scroll);
+    /* Main vertical box - this is the direct child of window */
+    GtkWidget *main_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_container_add(GTK_CONTAINER(network_window), main_vbox);
     
-    /* Main vertical box inside scroll */
+    /* Title bar for the window */
+    GtkWidget *title_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_name(title_bar, "settings-title-bar");
+    gtk_widget_set_size_request(title_bar, -1, 30);
+    gtk_box_pack_start(GTK_BOX(main_vbox), title_bar, FALSE, FALSE, 0);
+    
+    GtkWidget *title_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(title_label), "<b>System Settings</b>");
+    gtk_label_set_xalign(GTK_LABEL(title_label), 0.5);
+    gtk_box_pack_start(GTK_BOX(title_bar), title_label, TRUE, TRUE, 10);
+    
+    GtkWidget *close_title_btn = gtk_button_new_with_label("✕");
+    gtk_widget_set_size_request(close_title_btn, 25, 25);
+    g_signal_connect_swapped(close_title_btn, "clicked", G_CALLBACK(gtk_widget_destroy), network_window);
+    gtk_box_pack_end(GTK_BOX(title_bar), close_title_btn, FALSE, FALSE, 5);
+    
+    /* Separator under title bar */
+    GtkWidget *title_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(main_vbox), title_sep, FALSE, FALSE, 0);
+    
+    /* Scrolled window for the main content - THIS IS KEY FOR SCROLLING */
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), 
+                                   GTK_POLICY_NEVER,      /* No horizontal scroll */
+                                   GTK_POLICY_AUTOMATIC); /* Vertical scroll when needed */
+    gtk_widget_set_hexpand(scroll, TRUE);
+    gtk_widget_set_vexpand(scroll, TRUE);
+    gtk_box_pack_start(GTK_BOX(main_vbox), scroll, TRUE, TRUE, 0);
+    
+    /* Main content box inside scroll */
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 15);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 15);
+    gtk_widget_set_hexpand(vbox, TRUE);
+    gtk_widget_set_vexpand(vbox, FALSE);
     gtk_container_add(GTK_CONTAINER(scroll), vbox);
     
     /* Store vbox reference for updates */
@@ -956,14 +1002,19 @@ static void launch_network_tab(GtkButton *button, gpointer data)
     g_signal_connect(wifi_toggle, "clicked", G_CALLBACK(toggle_wifi_simple), NULL);
     gtk_box_pack_start(GTK_BOX(vbox), wifi_toggle, FALSE, FALSE, 0);
     
-    /* WiFi networks frame */
+    /* WiFi networks frame - this needs to expand */
     GtkWidget *networks_frame = gtk_frame_new("Available Networks");
+    gtk_widget_set_hexpand(networks_frame, TRUE);
+    gtk_widget_set_vexpand(networks_frame, TRUE);
     gtk_box_pack_start(GTK_BOX(vbox), networks_frame, TRUE, TRUE, 0);
     
-    /* Scrolled window for network list */
+    /* Inner scrolled window for network list */
     GtkWidget *net_scroll = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(net_scroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(net_scroll), 150);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(net_scroll), 
+                                   GTK_POLICY_AUTOMATIC, 
+                                   GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_hexpand(net_scroll, TRUE);
+    gtk_widget_set_vexpand(net_scroll, TRUE);
     gtk_container_add(GTK_CONTAINER(networks_frame), net_scroll);
     
     /* Create connectable network list */
@@ -1037,21 +1088,26 @@ static void launch_network_tab(GtkButton *button, gpointer data)
     
     /* ============ BRIGHTNESS SECTION ============ */
     GtkWidget *bright_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(vbox), bright_sep, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), bright_sep, FALSE, FALSE, 5);
     
     GtkWidget *bright_title = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(bright_title), "<b>☀️  Brightness</b>");
+    gtk_label_set_markup(GTK_LABEL(bright_title), "<b>☀️ Brightness</b>");
     gtk_label_set_xalign(GTK_LABEL(bright_title), 0.0);
     gtk_box_pack_start(GTK_BOX(vbox), bright_title, FALSE, FALSE, 0);
     
-    /* Brightness slider */
+    /* Brightness slider - block scroll events to prevent conflict */
     int current_brightness = get_brightness();
-    GtkWidget *brightness_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 10, 100, 5);
+    GtkWidget *brightness_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 10, 100, 1);
     gtk_range_set_value(GTK_RANGE(brightness_scale), current_brightness);
     gtk_scale_set_draw_value(GTK_SCALE(brightness_scale), TRUE);
     gtk_scale_set_value_pos(GTK_SCALE(brightness_scale), GTK_POS_RIGHT);
+    gtk_widget_set_size_request(brightness_scale, 200, 30);
+    
+    /* Block scroll events on the slider to prevent interfering with window scrolling */
+    g_signal_connect(brightness_scale, "scroll-event", G_CALLBACK(gtk_true), NULL);
+    
     g_signal_connect(brightness_scale, "value-changed", G_CALLBACK(on_brightness_changed), NULL);
-    gtk_box_pack_start(GTK_BOX(vbox), brightness_scale, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), brightness_scale, FALSE, FALSE, 5);
     
     /* ============ FOOTER ============ */
     GtkWidget *footer_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
@@ -1230,23 +1286,6 @@ static gboolean update_system_stats(gpointer user_data)
         }
         gtk_button_set_label(GTK_BUTTON(battery_label), battery_text);
     }
-    
-    /* Update Network Status (every 5 ticks = 10 seconds) - commented out in original */
-    /*
-    static int network_counter = 0;
-    if (network_counter++ % 5 == 0) {
-        check_internet_connectivity();
-        check_wifi_status();
-        
-        char network_text[64];
-        if (is_internet_connected) {
-            snprintf(network_text, sizeof(network_text), "🌐 Online");
-        } else {
-            snprintf(network_text, sizeof(network_text), "📡 Offline");
-        }
-        gtk_button_set_label(GTK_BUTTON(network_btn), network_text);
-    }
-        */
     
     return G_SOURCE_CONTINUE;
 }
