@@ -17,7 +17,7 @@
 #include "download.h"
 
 /* Debounce timer for brightness slider */
-static guint brightness_timeout_id = 0;
+//static guint brightness_timeout_id = 0;
 
 /* Define HISTORY_SIZE before using it */
 #define HISTORY_SIZE 60
@@ -576,38 +576,17 @@ static void set_brightness(int level)
 }
 
 /**
- * Timeout callback to apply brightness after debouncing.
- *
- * @param brightness Level as gpointer (cast to int).
- * @return G_SOURCE_REMOVE to run only once.
- */
-static gboolean set_brightness_timeout(gpointer brightness)
-{
-    int level = GPOINTER_TO_INT(brightness);
-    set_brightness(level);
-    brightness_timeout_id = 0;
-    return G_SOURCE_REMOVE;
-}
-
-/**
- * Callback for brightness slider value changes.
- * Uses a timeout to debounce rapid changes and prevent scroll conflicts.
+ * Callback for brightness slider value changes - direct version.
+ * Applies brightness immediately without debouncing to avoid timer issues.
  *
  * @param scale      The GtkScale widget.
  * @param user_data  User data (unused).
  */
-static void on_brightness_changed(GtkScale *scale, gpointer user_data)
+static void on_brightness_changed_direct(GtkScale *scale, gpointer user_data)
 {
     (void)user_data;
-    
-    /* Cancel previous timeout if exists */
-    if (brightness_timeout_id > 0) {
-        g_source_remove(brightness_timeout_id);
-    }
-    
-    /* Schedule brightness change after 50ms to debounce */
     int brightness = (int)gtk_range_get_value(GTK_RANGE(scale));
-    brightness_timeout_id = g_timeout_add(50, set_brightness_timeout, GINT_TO_POINTER(brightness));
+    set_brightness(brightness);
 }
 
 /**
@@ -1086,7 +1065,7 @@ static void launch_network_tab(GtkButton *button, gpointer data)
     g_signal_connect(view_all_btn, "clicked", G_CALLBACK(on_view_all_networks), NULL);
     gtk_box_pack_start(GTK_BOX(vbox), view_all_btn, FALSE, FALSE, 0);
     
-    /* ============ BRIGHTNESS SECTION ============ */
+        /* ============ BRIGHTNESS SECTION ============ */
     GtkWidget *bright_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_box_pack_start(GTK_BOX(vbox), bright_sep, FALSE, FALSE, 5);
     
@@ -1095,9 +1074,9 @@ static void launch_network_tab(GtkButton *button, gpointer data)
     gtk_label_set_xalign(GTK_LABEL(bright_title), 0.0);
     gtk_box_pack_start(GTK_BOX(vbox), bright_title, FALSE, FALSE, 0);
     
-    /* Brightness slider - block scroll events to prevent conflict */
+        /* Brightness slider */
     int current_brightness = get_brightness();
-    GtkWidget *brightness_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 10, 100, 1);
+    GtkWidget *brightness_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 10, 100, 5);
     gtk_range_set_value(GTK_RANGE(brightness_scale), current_brightness);
     gtk_scale_set_draw_value(GTK_SCALE(brightness_scale), TRUE);
     gtk_scale_set_value_pos(GTK_SCALE(brightness_scale), GTK_POS_RIGHT);
@@ -1106,8 +1085,13 @@ static void launch_network_tab(GtkButton *button, gpointer data)
     /* Block scroll events on the slider to prevent interfering with window scrolling */
     g_signal_connect(brightness_scale, "scroll-event", G_CALLBACK(gtk_true), NULL);
     
-    g_signal_connect(brightness_scale, "value-changed", G_CALLBACK(on_brightness_changed), NULL);
-    gtk_box_pack_start(GTK_BOX(vbox), brightness_scale, FALSE, FALSE, 5);
+    /* Connect value-changed with a direct call (no debounce to avoid complexity) */
+    g_signal_connect(brightness_scale, "value-changed", G_CALLBACK(on_brightness_changed_direct), NULL);
+    gtk_box_pack_start(GTK_BOX(vbox), brightness_scale, FALSE, FALSE, 5);;
+    
+    /* Block scroll events on the slider to prevent interfering with window scrolling */
+    g_signal_connect(brightness_scale, "scroll-event", G_CALLBACK(gtk_true), NULL);
+    g_signal_connect(brightness_scale, "value-changed", G_CALLBACK(on_brightness_changed_direct), NULL);
     
     /* ============ FOOTER ============ */
     GtkWidget *footer_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
