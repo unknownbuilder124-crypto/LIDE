@@ -53,7 +53,7 @@ NETWORK_STATS_H = panel/network_stats.h
 IMAGE_VIEWER_SOURCES = tools/image-viewer/image-viewer.c
 IMAGE_VIEWER_TARGET = blackline-image-viewer
 
-# Settings tool sources with sound settings
+# Settings tool sources with sound settings and wallpaper changer
 SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/display/display_settings.c \
                    tools/settings/display/orientation.c \
@@ -63,6 +63,7 @@ SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/sound/sound_tab.c \
                    tools/settings/sound/test_sound_tab.c \
                    tools/settings/sound/output/output_volume.c \
+                   tools/settings/sound/output/balance.c \
                    tools/settings/sound/output/show_output_device.c \
                    tools/settings/sound/input/input_volume.c \
                    tools/settings/sound/input/show_input_device.c \
@@ -180,14 +181,14 @@ blackline-system-monitor: $(SYSMON_SOURCES) $(SYSMON_HEADERS)
 $(IMAGE_VIEWER_TARGET): $(IMAGE_VIEWER_SOURCES)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(IMAGE_VIEWER_SOURCES) $(GTK_LIBS)
 
-# Settings Tool with PulseAudio sound settings and math library
+# Settings Tool 
 $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/display
 	mkdir -p tools/settings/sound/output
 	mkdir -p tools/settings/sound/input
 	mkdir -p tools/settings/sound/sounds
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm
-	@echo "Built Settings tool with Display and Sound tabs"
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm -lasound
+	@echo "Built Settings tool with Display (Orientation, Refresh Rate, Resolution, Wallpaper) and Sound tabs"
 
 # Terminal
 ifeq ($(HAVE_VTE),yes)

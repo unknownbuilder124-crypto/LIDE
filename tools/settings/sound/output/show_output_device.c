@@ -8,7 +8,7 @@
  * show_output_device.c
  * 
  * Audio output device list and selection
-Enumerates playback devices (speakers, HDMI, USB). Sets default output.
+ * Enumerates playback devices (speakers, HDMI, USB). Sets default output.
  *
  * This module is part of the LIDE desktop environment system.
  * See the main window manager (wm/) and session management (session/)
@@ -24,28 +24,22 @@ static void sink_info_callback(pa_context *c, const pa_sink_info *i, int eol, vo
     if (!i) return;
 
     if (device_combo) {
-        char *desc = i->description ? i->description : i->name;
+        const char *desc = i->description ? i->description : i->name;
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(device_combo), desc);
-        // Mark current default
-        if (i->flags & PA_SINK_FLAT_VOLUME) ; // Not directly default, need to check default sink separately
     }
 }
 
 static void default_sink_callback(pa_context *c, const pa_server_info *i, void *userdata) {
     (void)userdata;
+    (void)c;
     if (!i) return;
-    // Set active item to default sink
-    if (device_combo && i->default_sink_name) {
-        // Need to find index of sink with that name; we'll keep it simple and just set a string.
-        // For now, we'll just refresh the list later.
-    }
 }
 
 static void on_device_changed(GtkComboBox *combo, gpointer data) {
     (void)data;
     gchar *selected = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo));
     if (!selected) return;
-    // Set default sink
+    /* Set default sink */
     if (context && pa_context_get_state(context) == PA_CONTEXT_READY) {
         pa_operation *op = pa_context_set_default_sink(context, selected, NULL, NULL);
         if (op) pa_operation_unref(op);
@@ -61,7 +55,12 @@ static void init_pulse(void) {
     pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
 }
 
-GtkWidget *output_device_widget_new(void) {
+/**
+ * Creates the output device selection widget.
+ *
+ * @return GtkWidget containing the output device combo box.
+ */
+GtkWidget *output_device_selector_widget_new(void) {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
 
@@ -75,7 +74,7 @@ GtkWidget *output_device_widget_new(void) {
 
     init_pulse();
 
-    // Request sink list
+    /* Request sink list */
     if (context && pa_context_get_state(context) == PA_CONTEXT_READY) {
         pa_operation *op = pa_context_get_sink_info_list(context, sink_info_callback, NULL);
         if (op) pa_operation_unref(op);
