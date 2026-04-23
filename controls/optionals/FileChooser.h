@@ -16,7 +16,8 @@ typedef enum {
  */
 typedef enum {
     CHOOSER_ACTION_CREATE,  /**< Create a new file/folder */
-    CHOOSER_ACTION_SAVE     /**< Save an existing file (shows overwrite warning) */
+    CHOOSER_ACTION_SAVE,    /**< Save an existing file (shows overwrite warning) */
+    CHOOSER_ACTION_OPEN     /**< Open an existing file (select mode) */
 } FileChooserAction;
 
 /**

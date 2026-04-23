@@ -410,10 +410,10 @@ static void on_row_activated(GtkTreeView *tree, GtkTreePath *path,
         file_chooser_load_directory(chooser);
     } else if (chooser->mode == CHOOSER_FILE) {
         /**
-         * FILE SELECTED: In CREATE mode, select and close.
+         * FILE SELECTED: In CREATE/OPEN mode, select and close.
          * In SAVE mode, just set the filename in the entry field.
          */
-        if (chooser->action == CHOOSER_ACTION_CREATE) {
+        if (chooser->action == CHOOSER_ACTION_CREATE || chooser->action == CHOOSER_ACTION_OPEN) {
             strncpy(chooser->selected_path, fullpath, sizeof(chooser->selected_path) - 1);
             chooser->completed = 1;
             gtk_widget_hide(chooser->dialog);
@@ -464,6 +464,28 @@ static void on_action_clicked(GtkButton *button, gpointer user_data)
 {
     (void)button;
     FileChooser *chooser = (FileChooser*)user_data;
+
+    /* For OPEN mode, select the currently highlighted file */
+    if (chooser->action == CHOOSER_ACTION_OPEN) {
+        GtkTreeSelection *selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(chooser->file_list));
+        GtkTreeIter iter;
+        GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(chooser->file_list));
+
+        if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+            char *fullpath = NULL;
+            gtk_tree_model_get(model, &iter, COL_FULLPATH, &fullpath, -1);
+            if (fullpath) {
+                strncpy(chooser->selected_path, fullpath, sizeof(chooser->selected_path) - 1);
+                chooser->completed = 1;
+                gtk_widget_hide(chooser->dialog);
+                return;
+            }
+        }
+        g_warning("Please select a file to open");
+        return;
+    }
+
+    /* For CREATE/SAVE modes, use the filename entry */
     const char *filename = gtk_entry_get_text(GTK_ENTRY(chooser->filename_entry));
 
     if (!filename || strlen(filename) == 0) {
@@ -654,6 +676,8 @@ FileChooser* file_chooser_new(FileChooserMode mode, FileChooserAction action, co
         gtk_window_set_title(GTK_WINDOW(chooser->dialog), "Create New Folder");
     } else if (action == CHOOSER_ACTION_SAVE) {
         gtk_window_set_title(GTK_WINDOW(chooser->dialog), "Save File");
+    } else if (action == CHOOSER_ACTION_OPEN) {
+        gtk_window_set_title(GTK_WINDOW(chooser->dialog), "Open File");
     } else {
         gtk_window_set_title(GTK_WINDOW(chooser->dialog), "Select File");
     }
@@ -680,6 +704,8 @@ FileChooser* file_chooser_new(FileChooserMode mode, FileChooserAction action, co
         title_text = "Create New Folder";
     } else if (action == CHOOSER_ACTION_SAVE) {
         title_text = "Save File";
+    } else if (action == CHOOSER_ACTION_OPEN) {
+        title_text = "Open File";
     } else {
         title_text = "Select File";
     }
@@ -789,7 +815,7 @@ FileChooser* file_chooser_new(FileChooserMode mode, FileChooserAction action, co
     gtk_widget_set_vexpand(scrolled, TRUE);
     gtk_box_pack_start(GTK_BOX(content_vbox), scrolled, TRUE, TRUE, 0);
 
-    /* Filename entry field */
+    /* Filename entry field - hide in OPEN mode */
     GtkWidget *filename_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     GtkWidget *filename_label = gtk_label_new("Name:");
     chooser->filename_entry = gtk_entry_new();
@@ -798,6 +824,11 @@ FileChooser* file_chooser_new(FileChooserMode mode, FileChooserAction action, co
     gtk_box_pack_start(GTK_BOX(filename_box), filename_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(filename_box), chooser->filename_entry, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(content_vbox), filename_box, FALSE, FALSE, 0);
+
+    /* Hide filename entry in OPEN mode (not needed when selecting existing files) */
+    if (action == CHOOSER_ACTION_OPEN) {
+        gtk_widget_hide(filename_box);
+    }
 
     /* ================================================
      * CREATE ACTION BUTTONS
@@ -813,6 +844,8 @@ FileChooser* file_chooser_new(FileChooserMode mode, FileChooserAction action, co
         action_button_label = "Create Folder";
     } else if (action == CHOOSER_ACTION_SAVE) {
         action_button_label = "Save";
+    } else if (action == CHOOSER_ACTION_OPEN) {
+        action_button_label = "Open";
     } else {
         action_button_label = "Create";
     }
