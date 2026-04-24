@@ -10,6 +10,7 @@
 #include "sound/sound.h"
 #include "power/p_settings.h"
 #include "network/network.h"
+#include "mouse/mouse.h"
 
 /*
  * settings.c
@@ -191,13 +192,7 @@ static GtkWidget *create_custom_titlebar(const char *title, AppState *state)
 static GtkWidget *mouse_tab_new(void)
 
 {
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 20);
-    
-    GtkWidget *label = gtk_label_new("Mouse settings not implemented yet.");
-    gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
-    
-    return box;
+    return mouse_settings_tab_new();
 }
 
 static GtkWidget *network_tab_new(void)
@@ -235,7 +230,7 @@ static GtkWidget *search_tab_new(void)
     
     return box;
 }
-
+/*
 static GtkWidget *wifi_tab_new(void)
 
 {
@@ -247,6 +242,7 @@ static GtkWidget *wifi_tab_new(void)
     
     return box;
 }
+    */
 
 static GtkWidget *bluetooth_tab_new(void)
 
@@ -372,9 +368,6 @@ static void activate(GtkApplication *app, gpointer user_data)
                               search_tab_new(),
                               gtk_label_new("Search"));
     
-    gtk_notebook_append_page(GTK_NOTEBOOK(state->notebook),
-                              wifi_tab_new(),
-                              gtk_label_new("Wi‑Fi"));
     
     gtk_notebook_append_page(GTK_NOTEBOOK(state->notebook),
                               bluetooth_tab_new(),

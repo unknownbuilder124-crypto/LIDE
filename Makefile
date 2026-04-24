@@ -77,6 +77,8 @@ SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/power/batary.c \
                    tools/settings/power/mode.c \
                    tools/settings/network/network.c \
+                   tools/settings/mouse/mouse.c \
+                   tools/settings/mouse/mouse_style.c \
                    panel/internet_settings.c \
                    panel/wifi_list.c \
                    panel/wifi_connect.c \
@@ -95,7 +97,9 @@ SETTINGS_HEADERS = tools/settings/display/displaySettings.h \
                    tools/settings/power/p_settings.h \
                    tools/settings/power/batary.h \
                    tools/settings/power/mode.h \
-                   tools/settings/network/network.h
+                   tools/settings/network/network.h \
+                   tools/settings/mouse/mouse.h \
+                   tools/settings/mouse/mouse_style.h
 
 SETTINGS_TARGET = blackline-settings
 
@@ -204,7 +208,7 @@ $(FILE_ROLLER_TARGET): $(FILE_ROLLER_SOURCES) $(FILE_ROLLER_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(FILE_ROLLER_SOURCES) $(GTK_LIBS)
 	@echo "Built File Roller - Universal file viewer with custom file chooser"
 
-# Settings Tool with Display, Sound, Power, and Network tabs
+# Settings Tool with Display, Sound, Power, Network, and Mouse tabs
 $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/display
 	mkdir -p tools/settings/sound/output
@@ -212,8 +216,9 @@ $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/sound/sounds
 	mkdir -p tools/settings/power
 	mkdir -p tools/settings/network
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -Ipanel -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm -lasound
-	@echo "Built Settings tool with Display, Sound, Power, and Network tabs"
+	mkdir -p tools/settings/mouse
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -Ipanel -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm -lasound -lX11
+	@echo "Built Settings tool with Display, Sound, Power, Network, and Mouse tabs"
 
 # Terminal
 ifeq ($(HAVE_VTE),yes)
@@ -302,6 +307,7 @@ clean:
 	      tools/settings/*.o tools/settings/display/*.o tools/settings/sound/*.o \
 	      tools/settings/sound/output/*.o tools/settings/sound/input/*.o \
 	      tools/settings/sound/sounds/*.o tools/settings/power/*.o tools/settings/network/*.o \
+	      tools/settings/mouse/*.o \
 	      tools/file-manager/*.o fileRoller/*.o controls/optionals/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
@@ -313,6 +319,7 @@ distclean: clean
 	      tools/settings/sound/*.gch tools/settings/sound/output/*.gch \
 	      tools/settings/sound/input/*.gch tools/settings/sound/sounds/*.gch \
 	      tools/settings/power/*.gch tools/settings/network/*.gch \
+	      tools/settings/mouse/*.gch \
 	      controls/optionals/*.gch
 	@echo "Removed generated header files"
 
