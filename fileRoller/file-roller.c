@@ -135,8 +135,12 @@ typedef struct {
     /* PDF viewer stub */
     GtkWidget *pdf_label;           /* Placeholder for PDF */
 
-    /* Video viewer stub */
-    GtkWidget *video_label;         /* Placeholder for video */
+    /* Video viewer widgets */
+    GtkWidget *video_box;           /* Video player container */
+    GtkWidget *video_display;       /* Video display/info area */
+    GtkWidget *play_button;         /* Play button */
+    GtkWidget *info_label;          /* Video info label */
+    char *current_video_path;       /* Current video file path */
 
     /* Archive browser stub */
     GtkWidget *archive_tree;        /* Archive contents tree */
@@ -179,6 +183,10 @@ static TabState *create_new_tab(AppState *state);
 static void close_current_tab(AppState *state);
 static void switch_to_tab(AppState *state, TabState *tab);
 static void on_text_buffer_changed(GtkTextBuffer *buffer, gpointer user_data);
+
+/* Video player functions */
+static void load_video_file(TabState *tab, const char *filename);
+static void on_video_play_clicked(GtkButton *button, TabState *tab);
 
 /* ========== TEXT BUFFER CALLBACK ========== */
 
@@ -305,10 +313,36 @@ static TabState *create_new_tab(AppState *state)
 
     /* Video page */
     GtkWidget *video_page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    tab->video_label = gtk_label_new("Video Player\n\nSelect a video file to view");
-    gtk_label_set_selectable(GTK_LABEL(tab->video_label), TRUE);
-    gtk_box_pack_start(GTK_BOX(video_page), tab->video_label, TRUE, TRUE, 0);
+
+    /* Video display area */
+    tab->video_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_halign(tab->video_box, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(tab->video_box, GTK_ALIGN_CENTER);
+
+    /* Video info display */
+    tab->info_label = gtk_label_new("No video loaded");
+    gtk_label_set_line_wrap(GTK_LABEL(tab->info_label), TRUE);
+    gtk_label_set_selectable(GTK_LABEL(tab->info_label), TRUE);
+    gtk_widget_set_margin_top(tab->info_label, 20);
+    gtk_widget_set_margin_bottom(tab->info_label, 20);
+    gtk_widget_set_margin_start(tab->info_label, 30);
+    gtk_widget_set_margin_end(tab->info_label, 30);
+    gtk_box_pack_start(GTK_BOX(tab->video_box), tab->info_label, TRUE, TRUE, 0);
+
+    /* Play button */
+    tab->play_button = gtk_button_new_with_label("▶ Play Video");
+    gtk_widget_set_size_request(tab->play_button, 150, 50);
+    gtk_css_provider_load_from_data(gtk_css_provider_new(),
+        "button { font-size: 16pt; }",
+        -1, NULL);
+    g_signal_connect(tab->play_button, "clicked", G_CALLBACK(on_video_play_clicked), tab);
+    gtk_box_pack_start(GTK_BOX(tab->video_box), tab->play_button, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(video_page), tab->video_box, TRUE, TRUE, 0);
     gtk_stack_add_titled(GTK_STACK(tab->stack), video_page, "video", "Video");
+
+    /* Initialize video state */
+    tab->current_video_path = NULL;
 
     /* Archive page */
     GtkWidget *archive_page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -349,6 +383,7 @@ static void close_tab_data(TabState *tab)
 
     if (tab->filename) g_free(tab->filename);
     if (tab->folder) g_free(tab->folder);
+    if (tab->current_video_path) g_free(tab->current_video_path);
     if (tab->current_pixbuf) g_object_unref(tab->current_pixbuf);
     if (tab->original_pixbuf) g_object_unref(tab->original_pixbuf);
     if (tab->stack) gtk_widget_destroy(tab->stack);
@@ -724,6 +759,8 @@ static void update_window_title(AppState *state)
 
 /* ========== PDF/VIDEO/ARCHIVE FUNCTIONS ========== */
 
+/* ========== PDF/VIDEO/ARCHIVE FUNCTIONS ========== */
+
 static void load_pdf_file(TabState *tab, const char *filename)
 {
     if (!filename || !tab) return;
@@ -743,23 +780,86 @@ static void load_pdf_file(TabState *tab, const char *filename)
     }
 }
 
+/* ========== VIDEO PLAYER FUNCTIONS ========== */
+
+static void on_video_play_clicked(GtkButton *button, TabState *tab)
+{
+    (void)button;
+    if (!tab || !tab->current_video_path) return;
+
+    /* Try different video players in order of preference */
+    const char *players[] = { "mpv", "vlc", "ffplay", "totem", "xine", NULL };
+
+    for (int i = 0; players[i]; i++) {
+        gchar *cmd = g_strdup_printf("%s \"%s\" &", players[i], tab->current_video_path);
+        int result = system(cmd);
+        g_free(cmd);
+
+        if (result == 0) {
+            return;  /* Successfully launched */
+        }
+    }
+
+    /* If no player found, show error */
+    GtkWidget *dialog = gtk_message_dialog_new(NULL,
+                                               GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_ERROR,
+                                               GTK_BUTTONS_OK,
+                                               "No video player found");
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
+        "Please install one of: mpv, vlc, ffplay, totem, or xine");
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+}
+
 static void load_video_file(TabState *tab, const char *filename)
 {
     if (!filename || !tab) return;
 
     struct stat statbuf;
-    if (stat(filename, &statbuf) == 0) {
-        char msg[512];
-        snprintf(msg, sizeof(msg),
-                 "Video File: %s\n\nSize: %ld bytes\n\n"
-                 "For video playback, use:\n  • vlc (VLC Media Player)\n  • mpv\n  • ffplay\n\n"
-                 "To open this file:\n$ vlc \"%s\"",
-                 g_path_get_basename(filename),
-                 statbuf.st_size,
-                 filename);
-        gtk_label_set_text(GTK_LABEL(tab->video_label), msg);
-        gtk_label_set_line_wrap(GTK_LABEL(tab->video_label), TRUE);
+    if (stat(filename, &statbuf) != 0) {
+        gtk_label_set_text(GTK_LABEL(tab->info_label), "Error: Could not access video file");
+        return;
     }
+
+    /* Store the video path */
+    if (tab->current_video_path) {
+        g_free(tab->current_video_path);
+    }
+    tab->current_video_path = g_strdup(filename);
+
+    /* Get video duration using ffprobe if available */
+    gchar *duration_cmd = g_strdup_printf("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1:noprint_wrappers=1 \"%s\" 2>/dev/null", filename);
+    FILE *fp = popen(duration_cmd, "r");
+    gchar duration_str[32] = "Unknown";
+
+    if (fp) {
+        if (fgets(duration_str, sizeof(duration_str), fp)) {
+            /* Parse duration */
+            double duration_sec = atof(duration_str);
+            if (duration_sec > 0) {
+                int minutes = (int)duration_sec / 60;
+                int seconds = (int)duration_sec % 60;
+                g_snprintf(duration_str, sizeof(duration_str), "%d:%02d", minutes, seconds);
+            }
+        }
+        pclose(fp);
+    }
+    g_free(duration_cmd);
+
+    /* Update info label */
+    gchar info[1024];
+    g_snprintf(info, sizeof(info),
+        "<b>%s</b>\n\n"
+        "<b>Size:</b> %.2f MB\n"
+        "<b>Duration:</b> %s\n\n"
+        "Click 'Play Video' to start playback\n"
+        "Videos supported: MP4, WebM, MKV, AVI, MOV, and more",
+        g_path_get_basename(filename),
+        (double)statbuf.st_size / (1024 * 1024),
+        duration_str);
+
+    gtk_label_set_markup(GTK_LABEL(tab->info_label), info);
 }
 
 static void load_archive_file(TabState *tab, const char *filename)

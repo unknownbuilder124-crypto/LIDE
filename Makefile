@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals
+CFLAGS = -Wall -O2 -g -I. -Iinclude -Itools -Itools/file-manager -Ipanel -Icontrols/optionals -IfileRoller
 GTK_CFLAGS = $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS = $(shell pkg-config --libs gtk+-3.0)
 X11_LIBS = -lX11
@@ -38,8 +38,8 @@ ifneq ($(NM_PKG),)
     HAVE_NM = yes
 else
     $(warning "libnm not found, network manager will use nmcli commands")
-    NM_CFLAGS = 
-    NM_LIBS = 
+    NM_CFLAGS =
+    NM_LIBS =
     HAVE_NM = no
 endif
 
@@ -77,19 +77,10 @@ SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/power/batary.c \
                    tools/settings/power/mode.c \
                    tools/settings/network/network.c \
-                   tools/settings/mouse/mouse.c \
-                   tools/settings/mouse/mouse_style.c \
                    panel/internet_settings.c \
                    panel/wifi_list.c \
                    panel/wifi_connect.c \
-                   panel/connection_details.c \
-                   tools/settings/privacy/privacy.c \
-                   tools/settings/privacy/system/system.c \
-                   tools/settings/privacy/system/cache/cache.c \
-                   tools/settings/privacy/system/file_history/history.c \
-                   tools/settings/privacy/system/location/location.c \
-                   tools/settings/privacy/system/screen_lock/screen_lock.c \
-                   tools/settings/privacy/devices/device_privacy.c
+                   panel/connection_details.c
 
 SETTINGS_HEADERS = tools/settings/display/displaySettings.h \
                    tools/settings/display/orientation.h \
@@ -104,16 +95,7 @@ SETTINGS_HEADERS = tools/settings/display/displaySettings.h \
                    tools/settings/power/p_settings.h \
                    tools/settings/power/batary.h \
                    tools/settings/power/mode.h \
-                   tools/settings/network/network.h \
-                   tools/settings/mouse/mouse.h \
-                   tools/settings/mouse/mouse_style.h \
-                   tools/settings/privacy/privacy.h \
-                   tools/settings/privacy/system/system.h \
-                   tools/settings/privacy/system/cache/cache.h \
-                   tools/settings/privacy/system/file_history/history.h \
-                   tools/settings/privacy/system/location/location.h \
-                   tools/settings/privacy/system/screen_lock/screen_lock.h \
-                   tools/settings/privacy/devices/device_privacy.h
+                   tools/settings/network/network.h
 
 SETTINGS_TARGET = blackline-settings
 
@@ -126,9 +108,25 @@ all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-b
      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
      voidfox firefox-wrapper blackline-terminal $(IMAGE_VIEWER_TARGET) $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET)
 
-# Window Manager with Imlib2 support and context menu (needs GTK for dialogs)
-blackline-wm: wm/wm.c controls/optionals/O_tab.c controls/optionals/FileChooser.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $^ $(X11_LIBS) $(IMLIB2_LIBS) $(GTK_LIBS)
+# Window Manager with File Manager Integration - includes file browser functionality
+# Compiles wm.c with file manager sources, window resize, and browser support
+WM_FM_SOURCES = wm/wm.c \
+                tools/file-manager/browser.c \
+                tools/file-manager/recycle_bin.c \
+                tools/image-viewer/image-viewer-launcher.c \
+                fileRoller/file-roller-launcher.c \
+                tools/window_resize.c \
+                controls/optionals/O_tab.c \
+                controls/optionals/FileChooser.c
+
+WM_FM_HEADERS = tools/file-manager/fm.h \
+                tools/file-manager/recycle_bin.h \
+                tools/image-viewer/image-viewer.h \
+                fileRoller/file-roller.h \
+                tools/window_resize.h
+
+blackline-wm: $(WM_FM_SOURCES) $(WM_FM_HEADERS)
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(WM_FM_SOURCES) $(GTK_LIBS) $(X11_LIBS) $(IMLIB2_LIBS)
 
 # Panel with all features - WiFi, network stats, clock, connection details, etc.
 PANEL_SOURCES = panel/panel.c \
@@ -220,9 +218,9 @@ $(IMAGE_VIEWER_TARGET): $(IMAGE_VIEWER_SOURCES)
 # File Roller - Universal file viewer for all file types with custom FileChooser
 $(FILE_ROLLER_TARGET): $(FILE_ROLLER_SOURCES) $(FILE_ROLLER_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(FILE_ROLLER_SOURCES) $(GTK_LIBS)
-	@echo "Built File Roller - Universal file viewer with custom file chooser"
+	@echo "Built File Roller - Universal file viewer with integrated video player"
 
-# Settings Tool with Display, Sound, Power, Network, Mouse, and Privacy tabs
+# Settings Tool with Display, Sound, Power, and Network tabs
 $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/display
 	mkdir -p tools/settings/sound/output
@@ -230,14 +228,8 @@ $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/sound/sounds
 	mkdir -p tools/settings/power
 	mkdir -p tools/settings/network
-	mkdir -p tools/settings/mouse
-	mkdir -p tools/settings/privacy/system/cache
-	mkdir -p tools/settings/privacy/system/file_history
-	mkdir -p tools/settings/privacy/system/location
-	mkdir -p tools/settings/privacy/system/screen_lock
-	mkdir -p tools/settings/privacy/devices
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -Ipanel -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm -lasound -lX11
-	@echo "Built Settings tool with Display, Sound, Power, Network, Mouse, and Privacy tabs"
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -Ipanel -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm -lasound
+	@echo "Built Settings tool with Display, Sound, Power, and Network tabs"
 
 # Terminal
 ifeq ($(HAVE_VTE),yes)
@@ -326,10 +318,6 @@ clean:
 	      tools/settings/*.o tools/settings/display/*.o tools/settings/sound/*.o \
 	      tools/settings/sound/output/*.o tools/settings/sound/input/*.o \
 	      tools/settings/sound/sounds/*.o tools/settings/power/*.o tools/settings/network/*.o \
-	      tools/settings/mouse/*.o tools/settings/privacy/*.o tools/settings/privacy/system/*.o \
-	      tools/settings/privacy/system/cache/*.o tools/settings/privacy/system/file_history/*.o \
-	      tools/settings/privacy/system/location/*.o tools/settings/privacy/system/screen_lock/*.o \
-	      tools/settings/privacy/devices/*.o \
 	      tools/file-manager/*.o fileRoller/*.o controls/optionals/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
@@ -341,7 +329,6 @@ distclean: clean
 	      tools/settings/sound/*.gch tools/settings/sound/output/*.gch \
 	      tools/settings/sound/input/*.gch tools/settings/sound/sounds/*.gch \
 	      tools/settings/power/*.gch tools/settings/network/*.gch \
-	      tools/settings/mouse/*.gch \
 	      controls/optionals/*.gch
 	@echo "Removed generated header files"
 
