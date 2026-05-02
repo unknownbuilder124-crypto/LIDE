@@ -25,7 +25,15 @@ JavaScript execution.
  */
 
 static void on_close_clicked(GtkButton *button, gpointer window);
+static void on_new_tab_clicked(GtkButton *button, BrowserWindow *browser);
 
+/* Forward declarations for developer tools functions - also need tab functions */
+static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer data);
+static gboolean on_context_menu(WebKitWebView *web_view, WebKitContextMenu *context_menu, GdkEvent *event, WebKitHitTestResult *hit_test_result, gpointer user_data);
+static void toggle_inspector(BrowserWindow *browser);
+
+/* External functions from tab.c */
+extern BrowserTab* get_current_tab(BrowserWindow *browser);
 
 /* Define PATH_MAX if not defined (for systems that don't have it) */
 #ifndef PATH_MAX
@@ -295,6 +303,124 @@ gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer dat
     return FALSE;
 }
 
+/* Developer Tools and Keyboard Handlers */
+
+/**
+ * Keyboard event handler for Ctrl+T (new tab) and F12 (developer tools).
+ *
+ * @param widget  The widget that received the event.
+ * @param event   The keyboard event.
+ * @param data    BrowserWindow instance.
+ * @return        TRUE if event was handled, FALSE otherwise.
+ */
+static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+    BrowserWindow *browser = (BrowserWindow *)data;
+    (void)widget;
+
+    /* Ctrl+T for new tab */
+    if (event->state & GDK_CONTROL_MASK && event->keyval == GDK_KEY_t) {
+        on_new_tab_clicked(NULL, browser);
+        return TRUE;
+    }
+
+    /* F12 for developer tools */
+    if (event->keyval == GDK_KEY_F12) {
+        toggle_inspector(browser);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/**
+ * Context menu handler for right-click to show inspect element.
+ *
+ * @param web_view         The WebKitWebView.
+ * @param context_menu     The context menu.
+ * @param event            The event that triggered the menu.
+ * @param hit_test_result  Information about what was clicked.
+ * @param user_data        BrowserWindow instance.
+ * @return                 FALSE to allow default menu handling.
+ */
+static gboolean on_context_menu(WebKitWebView *web_view, WebKitContextMenu *context_menu,
+                                 GdkEvent *event, WebKitHitTestResult *hit_test_result,
+                                 gpointer user_data)
+{
+    (void)event;
+    (void)hit_test_result;
+    (void)user_data;
+
+    /* Add a separator between default items and inspect element */
+    WebKitContextMenuItem *separator = webkit_context_menu_item_new_separator();
+    if (separator) {
+        webkit_context_menu_append(context_menu, separator);
+    }
+
+    /* Create inspect element action and menu item */
+    GtkAction *inspect_action = gtk_action_new(
+        "inspect-element",
+        "Inspect Element",
+        "Inspect the selected element",
+        NULL
+    );
+
+    if (inspect_action) {
+        WebKitContextMenuItem *inspect_item = webkit_context_menu_item_new(inspect_action);
+        if (inspect_item) {
+            webkit_context_menu_append(context_menu, inspect_item);
+        }
+        g_object_unref(inspect_action);
+    }
+
+    /* Make sure developer extras are enabled */
+    WebKitSettings *settings = webkit_web_view_get_settings(web_view);
+    if (settings) {
+        webkit_settings_set_enable_developer_extras(settings, TRUE);
+    }
+
+    /* Get and show the inspector */
+    WebKitWebInspector *inspector = webkit_web_view_get_inspector(web_view);
+    if (inspector) {
+        DEBUG_PRINT("Showing inspector from context menu");
+        webkit_web_inspector_show(inspector);
+    }
+
+    return FALSE;
+}
+
+/**
+ * Toggles the developer tools inspector.
+ *
+ * @param browser BrowserWindow instance.
+ */
+static void toggle_inspector(BrowserWindow *browser)
+{
+    if (!browser || !browser->notebook) return;
+
+    BrowserTab *current = get_current_tab(browser);
+    if (!current || !current->web_view) return;
+
+    WebKitWebInspector *inspector = webkit_web_view_get_inspector(current->web_view);
+    if (!inspector) return;
+
+    /* Get the inspector settings */
+    WebKitSettings *settings = webkit_web_view_get_settings(current->web_view);
+    if (settings) {
+        /* Enable developer extras if not already enabled */
+        if (!webkit_settings_get_enable_developer_extras(settings)) {
+            webkit_settings_set_enable_developer_extras(settings, TRUE);
+        }
+    }
+
+    /* Toggle inspector - show or close */
+    if (webkit_web_inspector_is_attached(inspector)) {
+        webkit_web_inspector_close(inspector);
+    } else {
+        webkit_web_inspector_show(inspector);
+    }
+}
+
 /* Window control callbacks */
 
 /**
@@ -439,11 +565,17 @@ static void on_search_clicked(GtkButton *button, BrowserWindow *browser)
  * @param button  The button that was clicked.
  * @param browser BrowserWindow instance.
  */
-static void on_new_tab_clicked(GtkButton *button, BrowserWindow *browser) 
+static void on_new_tab_clicked(GtkButton *button, BrowserWindow *browser)
 
 {
+    (void)button;
     /* Load custom home page in new tab */
     char *home_path = get_home_page_path();
+    if (!home_path) {
+        DEBUG_PRINT("Error: Could not get home page path");
+        new_tab(browser, NULL);  /* Fallback to empty page */
+        return;
+    }
     char *home_uri = g_strconcat("file://", home_path, NULL);
     DEBUG_PRINT("Opening new tab with home page: %s", home_uri);
     new_tab(browser, home_uri);
@@ -776,12 +908,14 @@ void voidfox_activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_resizable(GTK_WINDOW(browser->window), TRUE);
     
     /* Enable events for dragging on the window */
-    gtk_widget_add_events(browser->window, GDK_BUTTON_PRESS_MASK | 
-                                         GDK_BUTTON_RELEASE_MASK | 
-                                         GDK_POINTER_MOTION_MASK);
+    gtk_widget_add_events(browser->window, GDK_BUTTON_PRESS_MASK |
+                                         GDK_BUTTON_RELEASE_MASK |
+                                         GDK_POINTER_MOTION_MASK |
+                                         GDK_KEY_PRESS_MASK);
     g_signal_connect(browser->window, "button-press-event", G_CALLBACK(on_button_press), browser);
     g_signal_connect(browser->window, "button-release-event", G_CALLBACK(on_button_release), browser);
     g_signal_connect(browser->window, "motion-notify-event", G_CALLBACK(on_motion_notify), browser);
+    g_signal_connect(browser->window, "key-press-event", G_CALLBACK(on_key_press_event), browser);
 
     /* Main vertical box */
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -1067,12 +1201,29 @@ void new_tab(BrowserWindow *browser, const char *url)
     g_signal_connect(web_view, "permission-request", G_CALLBACK(on_web_view_permission_request), browser);
     g_signal_connect(web_view, "decide-policy", G_CALLBACK(on_web_view_decide_policy), browser);
 
+    /* Connect context menu for inspect element */
+    g_signal_connect(web_view, "context-menu", G_CALLBACK(on_context_menu), browser);
+
+    /* Enable developer tools - this is critical for inspector to work */
+    WebKitSettings *wk_settings = webkit_web_view_get_settings(web_view);
+    if (wk_settings) {
+        webkit_settings_set_enable_developer_extras(wk_settings, TRUE);
+        DEBUG_PRINT("Developer extras enabled for web view");
+    }
+
+    WebKitWebInspector *inspector = webkit_web_view_get_inspector(web_view);
+    if (inspector) {
+        DEBUG_PRINT("Web inspector initialized for web view");
+    }
+
     /* Load URL - use provided URL or custom home page */
     if (url && *url) {
+        DEBUG_PRINT("new_tab: loading URL: %s", url);
         webkit_web_view_load_uri(web_view, url);
     } else {
         char *home_path = get_home_page_path();
         char *home_uri = g_strconcat("file://", home_path, NULL);
+        DEBUG_PRINT("new_tab: loading home page from: %s", home_uri);
         webkit_web_view_load_uri(web_view, home_uri);
         g_free(home_uri);
     }
@@ -1085,8 +1236,9 @@ void new_tab(BrowserWindow *browser, const char *url)
         return;
     }
     gtk_box_pack_start(GTK_BOX(tab_child), GTK_WIDGET(web_view), TRUE, TRUE, 0);
+    gtk_widget_show(GTK_WIDGET(web_view));
     gtk_widget_show(tab_child);
-    DEBUG_PRINT("Tab child container created");
+    DEBUG_PRINT("Tab child container created and shown");
 
     /* Create BrowserTab struct */
     BrowserTab *tab = g_new0(BrowserTab, 1);
