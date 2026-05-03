@@ -30,7 +30,7 @@ Settings settings;
 /* Default values */
 static const char *default_home_page = "about:blank";
 static const char *default_custom_search = "https://www.google.com/search?q=%s";
-static const char *default_download_dir = "Downloads";
+static const char *default_download_dir = "~/Desktop/downloads";
 static const char *default_user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 static const char *default_font_family = "Sans";
 
