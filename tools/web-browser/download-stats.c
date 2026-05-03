@@ -188,18 +188,46 @@ static void update_stats_list(GtkListBox *listbox)
 
         /* Progress bar and status */
         if (item->status == 1) { /* downloading */
+            /* Percentage display - large and bold */
+            char percentage_text[64];
+            snprintf(percentage_text, sizeof(percentage_text),
+                    "<span size='14000' weight='bold' foreground='#00ff88'>%.0f%%</span>",
+                    item->progress);
+            GtkWidget *percent_label = gtk_label_new(NULL);
+            gtk_label_set_markup(GTK_LABEL(percent_label), percentage_text);
+            gtk_label_set_xalign(GTK_LABEL(percent_label), 0.5);
+            gtk_box_pack_start(GTK_BOX(vbox), percent_label, FALSE, FALSE, 0);
+
+            /* Progress bar */
             GtkWidget *progress_bar = gtk_progress_bar_new();
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), item->progress / 100.0);
             char progress_text[256];
             if (item->total > 0) {
-                snprintf(progress_text, sizeof(progress_text), "%.1f%% - %llu / %llu bytes", 
-                         item->progress, 
-                         (unsigned long long)item->received, 
-                         (unsigned long long)item->total);
+                /* Calculate speed and ETA */
+                char size_received[32], size_total[32];
+                double mb_received = item->received / (1024.0 * 1024.0);
+                double mb_total = item->total / (1024.0 * 1024.0);
+
+                if (mb_total > 1.0) {
+                    snprintf(size_received, sizeof(size_received), "%.1f MB", mb_received);
+                    snprintf(size_total, sizeof(size_total), "%.1f MB", mb_total);
+                } else {
+                    int kb_received = item->received / 1024;
+                    int kb_total = item->total / 1024;
+                    snprintf(size_received, sizeof(size_received), "%d KB", kb_received);
+                    snprintf(size_total, sizeof(size_total), "%d KB", kb_total);
+                }
+
+                snprintf(progress_text, sizeof(progress_text), "%s / %s",
+                         size_received, size_total);
             } else {
-                snprintf(progress_text, sizeof(progress_text), "%.1f%% - %llu bytes", 
-                         item->progress, 
-                         (unsigned long long)item->received);
+                double mb_received = item->received / (1024.0 * 1024.0);
+                if (mb_received > 1.0) {
+                    snprintf(progress_text, sizeof(progress_text), "%.1f MB downloaded", mb_received);
+                } else {
+                    int kb_received = item->received / 1024;
+                    snprintf(progress_text, sizeof(progress_text), "%d KB downloaded", kb_received);
+                }
             }
             gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_text);
             gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(progress_bar), TRUE);

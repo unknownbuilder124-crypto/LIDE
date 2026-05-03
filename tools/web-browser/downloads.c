@@ -225,7 +225,9 @@ void add_download(WebKitDownload *download, BrowserWindow *browser)
     /* Connect signal handlers */
     g_signal_connect_swapped(download, "finished", G_CALLBACK(on_download_finished), item);
     g_signal_connect_swapped(download, "failed", G_CALLBACK(on_download_failed), item);
-    g_signal_connect(download, "notify::progress", G_CALLBACK(on_download_progress), item);
+    /* Monitor progress via multiple signals for better real-time updates */
+    g_signal_connect(download, "notify::estimated-progress", G_CALLBACK(on_download_progress), item);
+    g_signal_connect(download, "received-data", G_CALLBACK(on_download_progress), item);
     
     save_downloads();
     
