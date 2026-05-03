@@ -545,41 +545,59 @@ void load_downloads(void)
 {
     FILE *f = fopen(DOWNLOADS_FILE, "r");
     if (!f) return;
-    
+
     char line[8192];
     while (fgets(line, sizeof(line), f)) {
         char *newline = strchr(line, '\n');
         if (newline) *newline = '\0';
-        
+
         DownloadItem *item = g_new0(DownloadItem, 1);
-        
+
         /* Parse: filename|url|destination|status */
         char *p = line;
         char *sep = strchr(p, '|');
         if (!sep) { g_free(item); continue; }
         *sep = '\0';
         item->filename = g_strdup(p);
-        
+
         p = sep + 1;
         sep = strchr(p, '|');
         if (!sep) { g_free(item->filename); g_free(item); continue; }
         *sep = '\0';
         item->url = g_strdup(p);
-        
+
         p = sep + 1;
         sep = strchr(p, '|');
         if (!sep) { g_free(item->filename); g_free(item->url); g_free(item); continue; }
         *sep = '\0';
         item->destination = g_strdup(p);
-        
+
         p = sep + 1;
         item->status = atoi(p);
-        
+
         item->progress = (item->status == 2) ? 100.0 : 0.0;
         item->download = NULL;
-        
+
         downloads = g_list_append(downloads, item);
     }
-    
+
     fclose(f);
+}
+
+/**
+ * Gets the count of active downloads.
+ * Counts all downloads with status == 1 (downloading).
+ *
+ * @return Number of downloads currently in progress.
+ */
+int get_active_download_count(void)
+{
+    int count = 0;
+    for (GList *l = downloads; l; l = l->next) {
+        DownloadItem *item = l->data;
+        if (item->status == 1) { /* downloading */
+            count++;
+        }
+    }
+    return count;
 }

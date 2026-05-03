@@ -86,4 +86,12 @@ void save_downloads(void);
  */
 void load_downloads(void);
 
+/**
+ * Gets the count of active downloads.
+ * Counts all downloads with status == 1 (downloading).
+ *
+ * @return Number of downloads currently in progress.
+ */
+int get_active_download_count(void);
+
 #endif /* VOIDFOX_DOWNLOADS_H */
