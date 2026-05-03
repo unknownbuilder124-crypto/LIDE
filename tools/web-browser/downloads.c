@@ -139,20 +139,23 @@ static void on_download_failed(DownloadItem *item)
 }
 
 /**
- * Callback for download progress updates.
+ * Callback for download progress updates via "received-data" signal.
  * Updates the download item progress and received/total bytes.
  * Also updates the menu badge showing active downloads.
  *
  * @param download The WebKitDownload object.
- * @param item     The DownloadItem being updated.
+ * @param data_length Bytes received (from signal).
+ * @param item     The DownloadItem being updated (user_data).
  *
  * @sideeffect Updates progress, received, and total fields.
  * @sideeffect Updates UI if browser is available.
  * @sideeffect Updates the downloads menu badge.
  */
-static void on_download_progress(WebKitDownload *download, DownloadItem *item)
+static void on_download_progress(WebKitDownload *download, guint64 data_length, DownloadItem *item)
 
 {
+    if (!item || !download) return;
+
     item->progress = webkit_download_get_estimated_progress(download) * 100.0;
     item->received = webkit_download_get_received_data_length(download);
 
@@ -255,8 +258,7 @@ void add_download(WebKitDownload *download, BrowserWindow *browser)
     /* Connect signal handlers */
     g_signal_connect_swapped(download, "finished", G_CALLBACK(on_download_finished), item);
     g_signal_connect_swapped(download, "failed", G_CALLBACK(on_download_failed), item);
-    /* Monitor progress via multiple signals for better real-time updates */
-    g_signal_connect(download, "notify::estimated-progress", G_CALLBACK(on_download_progress), item);
+    /* Monitor progress via received-data signal for real-time updates */
     g_signal_connect(download, "received-data", G_CALLBACK(on_download_progress), item);
     
     save_downloads();
