@@ -42,4 +42,11 @@ GtkWidget* create_application_menu(BrowserWindow *browser);
  */
 void show_app_menu(GtkWidget *menu, GtkWidget *button);
 
+/**
+ * Updates the downloads menu item to show active download count.
+ * Shows "Downloads (N)" where N is the number of active downloads.
+ * Called whenever download state changes to provide real-time feedback.
+ */
+void update_downloads_menu_badge(void);
+
 #endif /* VOIDFOX_APP_MENU_H */

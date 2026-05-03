@@ -2,6 +2,7 @@
 #include "bookmarks.h"
 #include "history.h"
 #include "downloads.h"
+#include "download-stats.h"
 #include "passwords.h"
 #include "extensions.h"
 #include "settings.h"
@@ -32,6 +33,9 @@ extern void show_passwords_tab(BrowserWindow *browser);
 extern void show_extensions_tab(BrowserWindow *browser);
 extern void show_themes_tab(BrowserWindow *browser);
 extern void show_settings_tab(BrowserWindow *browser);
+
+/* Global reference to downloads menu item for updating badge */
+static GtkWidget *downloads_menu_item = NULL;
 
 /**
  * Find in page dialog data structure.
@@ -208,6 +212,33 @@ static void on_downloads_clicked(GtkMenuItem *item, BrowserWindow *browser)
 {
     (void)item;
     show_downloads_tab(browser);
+}
+
+/**
+ * Updates the downloads menu item to show active download count.
+ * Shows "Downloads (N)" where N is the number of active downloads.
+ */
+void update_downloads_menu_badge(void)
+{
+    if (!downloads_menu_item) return;
+    
+    int active_count = 0;
+    for (GList *l = downloads; l; l = l->next) {
+        DownloadItem *item = l->data;
+        if (item->status == 1) { /* downloading */
+            active_count++;
+        }
+    }
+    
+    char *label_text;
+    if (active_count > 0) {
+        label_text = g_strdup_printf("Downloads (%d)", active_count);
+    } else {
+        label_text = g_strdup("Downloads");
+    }
+    
+    gtk_menu_item_set_label(GTK_MENU_ITEM(downloads_menu_item), label_text);
+    g_free(label_text);
 }
 
 /**
@@ -475,8 +506,12 @@ GtkWidget* create_application_menu(BrowserWindow *browser)
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), history_item);
     
     GtkWidget *downloads_item = gtk_menu_item_new_with_label("Downloads");
+    downloads_menu_item = downloads_item; /* Store global reference */
     g_signal_connect(downloads_item, "activate", G_CALLBACK(on_downloads_clicked), browser);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), downloads_item);
+    
+    /* Update the badge initially */
+    update_downloads_menu_badge();
     
     GtkWidget *passwords_item = gtk_menu_item_new_with_label("Passwords");
     g_signal_connect(passwords_item, "activate", G_CALLBACK(on_passwords_clicked), browser);

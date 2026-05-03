@@ -1,4 +1,5 @@
 #include "downloads.h"
+#include "settings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +8,6 @@
 #include <time.h>
 
 #define DOWNLOADS_FILE "downloads.txt"
-#define DOWNLOAD_DIR "Downloads"
 
 
 /*
@@ -36,15 +36,26 @@ static void on_download_failed(DownloadItem *item);
  * Creates the downloads directory if it does not exist.
  * Directory is created with 0700 permissions (owner read/write/execute only).
  *
- * @sideeffect Creates directory ./Downloads in the current working directory.
+ * @sideeffect Creates the downloads directory as specified in settings.
  */
 static void ensure_download_dir(void)
-
 {
-    struct stat st = {0};
-    if (stat(DOWNLOAD_DIR, &st) == -1) {
-        mkdir(DOWNLOAD_DIR, 0700);
+    char *download_dir = g_strdup(settings.download_dir);
+    
+    /* Expand ~ if present */
+    if (download_dir[0] == '~') {
+        const char *home = g_get_home_dir();
+        char *expanded = g_build_filename(home, download_dir + 1, NULL);
+        g_free(download_dir);
+        download_dir = expanded;
     }
+    
+    struct stat st = {0};
+    if (stat(download_dir, &st) == -1) {
+        mkdir(download_dir, 0700);
+    }
+    
+    g_free(download_dir);
 }
 
 /**
@@ -97,11 +108,13 @@ static void on_download_finished(DownloadItem *item)
 /**
  * Callback for download failure.
  * Updates the download item status to failed and stores error message.
+ * Also updates the menu badge.
  *
  * @param item The DownloadItem that failed.
  *
  * @sideeffect Marks item as failed (status=3) with error message.
  * @sideeffect Saves downloads to file and updates UI.
+ * @sideeffect Updates the downloads menu badge.
  */
 static void on_download_failed(DownloadItem *item)
 
@@ -109,10 +122,47 @@ static void on_download_failed(DownloadItem *item)
     item->status = 3; /* failed */
     item->error_message = g_strdup("Download failed");
     save_downloads();
-    
+
     if (global_browser) {
         update_downloads_tab(global_browser);
     }
+
+    /* Update the menu badge - download no longer active */
+    extern void update_downloads_menu_badge(void);
+    update_downloads_menu_badge();
+}
+
+/**
+ * Callback for download progress updates.
+ * Updates the download item progress and received/total bytes.
+ * Also updates the menu badge showing active downloads.
+ *
+ * @param download The WebKitDownload object.
+ * @param item     The DownloadItem being updated.
+ *
+ * @sideeffect Updates progress, received, and total fields.
+ * @sideeffect Updates UI if browser is available.
+ * @sideeffect Updates the downloads menu badge.
+ */
+static void on_download_progress(WebKitDownload *download, DownloadItem *item)
+
+{
+    item->progress = webkit_download_get_estimated_progress(download) * 100.0;
+    item->received = webkit_download_get_received_data_length(download);
+
+    /* Get total size from response headers */
+    WebKitURIResponse *response = webkit_download_get_response(download);
+    if (response) {
+        item->total = webkit_uri_response_get_content_length(response);
+    }
+
+    if (global_browser) {
+        update_downloads_tab(global_browser);
+    }
+
+    /* Update the menu badge with active download count */
+    extern void update_downloads_menu_badge(void);
+    update_downloads_menu_badge();
 }
 
 /**
@@ -156,16 +206,26 @@ void add_download(WebKitDownload *download, BrowserWindow *browser)
     item->download = g_object_ref(download);
     
     /* Set destination path */
-    char *dest_path = g_build_filename(DOWNLOAD_DIR, item->filename, NULL);
+    char *download_dir = g_strdup(settings.download_dir);
+    /* Expand ~ if present */
+    if (download_dir[0] == '~') {
+        const char *home = g_get_home_dir();
+        char *expanded = g_build_filename(home, download_dir + 1, NULL);
+        g_free(download_dir);
+        download_dir = expanded;
+    }
+    char *dest_path = g_build_filename(download_dir, item->filename, NULL);
+    g_free(download_dir);
     item->destination = dest_path;
     webkit_download_set_destination(download, dest_path);
     webkit_download_set_allow_overwrite(download, FALSE);
     
     downloads = g_list_append(downloads, item);
     
-    /* Connect simple signal handlers */
+    /* Connect signal handlers */
     g_signal_connect_swapped(download, "finished", G_CALLBACK(on_download_finished), item);
     g_signal_connect_swapped(download, "failed", G_CALLBACK(on_download_failed), item);
+    g_signal_connect(download, "notify::progress", G_CALLBACK(on_download_progress), item);
     
     save_downloads();
     
@@ -186,9 +246,18 @@ static void open_download_folder(GtkButton *button, DownloadItem *item)
 {
     (void)button;
     (void)item;
-    char *cmd = g_strdup_printf("xdg-open %s", DOWNLOAD_DIR);
+    char *download_dir = g_strdup(settings.download_dir);
+    /* Expand ~ if present */
+    if (download_dir[0] == '~') {
+        const char *home = g_get_home_dir();
+        char *expanded = g_build_filename(home, download_dir + 1, NULL);
+        g_free(download_dir);
+        download_dir = expanded;
+    }
+    char *cmd = g_strdup_printf("xdg-open %s", download_dir);
     system(cmd);
     g_free(cmd);
+    g_free(download_dir);
 }
 
 /**
@@ -317,7 +386,34 @@ void show_downloads_tab(BrowserWindow *browser)
     GtkWidget *clear_btn = gtk_button_new_with_label("Clear Completed");
     g_signal_connect(clear_btn, "clicked", G_CALLBACK(clear_completed_downloads), browser);
     gtk_box_pack_end(GTK_BOX(header_box), clear_btn, FALSE, FALSE, 0);
-    
+
+    /* Download summary panel */
+    GtkWidget *summary_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
+    gtk_widget_set_margin_top(summary_box, 10);
+    gtk_widget_set_margin_bottom(summary_box, 10);
+    gtk_box_pack_start(GTK_BOX(tab_content), summary_box, FALSE, FALSE, 0);
+
+    /* Count active downloads */
+    int active_count = 0;
+    for (GList *l = downloads; l; l = l->next) {
+        DownloadItem *item = l->data;
+        if (item->status == 1) active_count++;
+    }
+
+    char summary_text[256];
+    if (active_count > 0) {
+        snprintf(summary_text, sizeof(summary_text),
+                 "<span size='12000' foreground='#00ff88'>↓ <b>%d active download(s)</b></span>",
+                 active_count);
+    } else {
+        snprintf(summary_text, sizeof(summary_text),
+                 "<span size='12000' foreground='#888888'>No active downloads</span>");
+    }
+
+    GtkWidget *summary_label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(summary_label), summary_text);
+    gtk_box_pack_start(GTK_BOX(summary_box), summary_label, FALSE, FALSE, 0);
+
     GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);

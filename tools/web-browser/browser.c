@@ -2,6 +2,7 @@
 #include "app_menu.h"
 #include "bookmarks.h"
 #include "history.h"
+#include "downloads.h"
 #include "settings.h"
 #include "window_resize.h"
 #include <ctype.h>
@@ -10,6 +11,7 @@
 #include <limits.h> // for PATH_MAX
 #include <unistd.h> // for readlink, access
 #include <stdlib.h> // for realpath
+#include <libsoup/soup.h> // for SoupMessageHeaders
 
 
 /*
@@ -741,49 +743,45 @@ gboolean on_web_view_permission_request(WebKitWebView *web_view, WebKitPermissio
  * @return         TRUE if handled, FALSE to let WebKit handle it.
  */
 gboolean on_web_view_decide_policy(WebKitWebView *web_view, WebKitPolicyDecision *decision, WebKitPolicyDecisionType type, BrowserWindow *browser) {
-    (void)browser;
-    
+
     if (type == WEBKIT_POLICY_DECISION_TYPE_RESPONSE) {
         WebKitResponsePolicyDecision *response = WEBKIT_RESPONSE_POLICY_DECISION(decision);
         WebKitURIRequest *request = webkit_response_policy_decision_get_request(response);
         const gchar *uri = webkit_uri_request_get_uri(request);
-        
-        /* Check if this is a download (based on MIME type or content disposition) */
-        if (webkit_response_policy_decision_is_mime_type_supported(response)) {
-            return FALSE; /* Let WebKit handle it normally */
-        }
-        
-        /* It's a download */
-        WebKitDownload *download = webkit_web_view_download_uri(web_view, uri);
-        if (download) {
-            /* Set download destination */
-            char *download_dir = g_strdup(settings.download_dir);
-            /* Expand ~ if present */
-            if (download_dir[0] == '~') {
-                const char *home = g_get_home_dir();
-                char *expanded = g_build_filename(home, download_dir + 1, NULL);
-                g_free(download_dir);
-                download_dir = expanded;
-            }
-            
-            /* Create destination URI */
-            char *filename = g_path_get_basename(uri);
-            char *dest_path = g_build_filename(download_dir, filename, NULL);
-            char *dest_uri = g_filename_to_uri(dest_path, NULL, NULL);
-            
-            webkit_download_set_destination(download, dest_uri);
-            
-            g_free(filename);
-            g_free(dest_path);
-            g_free(dest_uri);
-            g_free(download_dir);
-            
-            if (settings.ask_download_location) {
-                /* TODO: Show file chooser dialog to ask user */
+
+        /* Get the response to check headers */
+        WebKitURIResponse *uri_response = webkit_response_policy_decision_get_response(response);
+        const char *content_disposition = NULL;
+
+        if (uri_response) {
+            SoupMessageHeaders *response_headers = webkit_uri_response_get_http_headers(uri_response);
+            if (response_headers) {
+                content_disposition = soup_message_headers_get_one(response_headers, "Content-Disposition");
             }
         }
-        webkit_policy_decision_ignore(decision);
-        return TRUE;
+
+        /* If Content-Disposition header indicates attachment, it's a download */
+        if (content_disposition && g_str_has_prefix(content_disposition, "attachment")) {
+            WebKitDownload *download = webkit_web_view_download_uri(web_view, uri);
+            if (download) {
+                add_download(download, browser);
+            }
+            webkit_policy_decision_ignore(decision);
+            return TRUE;
+        }
+
+        /* Also check if MIME type is not supported (unknown file type = download) */
+        if (!webkit_response_policy_decision_is_mime_type_supported(response)) {
+            WebKitDownload *download = webkit_web_view_download_uri(web_view, uri);
+            if (download) {
+                add_download(download, browser);
+            }
+            webkit_policy_decision_ignore(decision);
+            return TRUE;
+        }
+
+        /* Otherwise let WebKit handle it normally (display PDF, images, etc.) */
+        return FALSE;
     }
     return FALSE;
 }
