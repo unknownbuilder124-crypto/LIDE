@@ -6,8 +6,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
+#include <limits.h>
 
 #define DOWNLOADS_FILE "downloads.txt"
+
+/* Define PATH_MAX if not defined (for systems that don't have it) */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 
 /*
@@ -205,17 +211,41 @@ void add_download(WebKitDownload *download, BrowserWindow *browser)
     item->total = 0;
     item->download = g_object_ref(download);
     
-    /* Set destination path */
+    /* Set destination path - must be absolute for WebKit */
     char *download_dir = g_strdup(settings.download_dir);
+
     /* Expand ~ if present */
-    if (download_dir[0] == '~') {
+    if (download_dir && download_dir[0] == '~') {
         const char *home = g_get_home_dir();
         char *expanded = g_build_filename(home, download_dir + 1, NULL);
         g_free(download_dir);
         download_dir = expanded;
     }
+
+    /* Ensure it's an absolute path */
+    char absolute_dir[PATH_MAX];
+    if (!download_dir || download_dir[0] != '/') {
+        /* If not absolute, make it absolute using realpath with file creation */
+        char *result = realpath(download_dir ? download_dir : ".", absolute_dir);
+        if (!result) {
+            /* If realpath fails, use the home directory's downloads folder */
+            const char *home = g_get_home_dir();
+            snprintf(absolute_dir, sizeof(absolute_dir), "%s/Desktop/downloads", home);
+        }
+        g_free(download_dir);
+        download_dir = g_strdup(absolute_dir);
+    }
+
     char *dest_path = g_build_filename(download_dir, item->filename, NULL);
     g_free(download_dir);
+
+    /* Verify we have an absolute path before passing to WebKit */
+    if (!dest_path || dest_path[0] != '/') {
+        fprintf(stderr, "ERROR: Download destination is not absolute: %s\n", dest_path ? dest_path : "(null)");
+        if (dest_path) g_free(dest_path);
+        dest_path = g_build_filename(g_get_home_dir(), "Desktop/downloads", item->filename, NULL);
+    }
+
     item->destination = dest_path;
     webkit_download_set_destination(download, dest_path);
     webkit_download_set_allow_overwrite(download, FALSE);
