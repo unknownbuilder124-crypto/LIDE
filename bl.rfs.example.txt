@@ -1,0 +1,91 @@
+rfs/
+├── bin/
+│   → essential binaries (bash, coreutils, your CLI tools)
+│
+├── sbin/
+│   → system binaries (init helpers, mount, network tools)
+│
+├── boot/
+│   → kernel-related files (if needed during build only)
+│
+├── dev/
+│   → device nodes (created at boot by udev)
+│
+├── etc/
+│   ├── passwd
+│   ├── group
+│   ├── fstab
+│   ├── hostname
+│   ├── init.d/ OR systemd/
+│   └── X11/
+│       └── xorg.conf (optional)
+│
+├── home/
+│   → user directories (empty or default user setup)
+│
+├── lib/ and lib64/
+│   → shared libraries (glibc, GTK, X11 libs)
+│
+├── usr/
+│   ├── bin/
+│   │   → applications (file manager, terminal, browser, tools)
+│   │
+│   ├── lib/
+│   │   → app libraries
+│   │
+│   └── share/
+│       ├── applications/
+│       │   → .desktop launchers (LIDE apps)
+│       │
+│       ├── lide/
+│       │   → MY CORE SYSTEM ASSETS
+│       │   (themes, icons, wallpapers, configs)
+│       │
+│       └── xsessions/
+│           └── lide.desktop
+│               → X11 session entry for login manager
+│
+├── opt/
+│   └── lide/
+│       ├── wm/
+│       │   → my window manager binaries
+│       │
+│       ├── panel/
+│       │   → panel executable + modules
+│       │
+│       ├── launcher/
+│       │   → launcher binary + search engine
+│       │
+│       ├── session/
+│       │   → session manager (starts WM + panel)
+│       │
+│       ├── tools/
+│       │   → all my tools (calculator, editor, etc.)
+│       │
+│       └── assets/
+│           → images/, wallpapers/, themes/
+│
+├── var/
+│   ├── log/
+│   │   → system logs
+│   └── tmp/
+│       → runtime temp files
+│
+├── tmp/
+│   → temporary system files
+│
+├── proc/
+│   → virtual filesystem (kernel runtime info)
+│
+├── sys/
+│   → kernel device interface
+│
+├── run/
+│   → runtime state (pid files, sockets)
+│
+└── init
+    → PID 1 (VERY IMPORTANT)
+      launches:
+      - system services
+      - X11
+      - session (LIDE desktop)

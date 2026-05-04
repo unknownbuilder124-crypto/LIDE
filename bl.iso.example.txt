@@ -1,0 +1,25 @@
+blackline.iso/
+├── boot/
+│   ├── grub/
+│   │   └── grub.cfg
+│   │       → Boot menu config (entry: LIDE OS, kernel path, initrd args)
+│   │
+│   ├── vmlinuz
+│   │       → Linux kernel image (compiled kernel)
+│   │
+│   └── initrd.img
+│           → Initial RAM filesystem (drivers, mount logic, init bootstrap)
+│
+├── live/
+│   └── filesystem.squashfs
+│           → COMPRESSED root filesystem (your entire OS system)
+│
+├── EFI/
+│   └── boot/
+│       └── bootx64.efi
+│           → UEFI bootloader (GRUB EFI binary)
+│
+└── isolinux/ (optional if BIOS support)
+    ├── isolinux.bin
+    └── isolinux.cfg
+        → Legacy BIOS boot support
