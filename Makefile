@@ -58,6 +58,10 @@ FILE_ROLLER_SOURCES = fileRoller/file-roller.c controls/optionals/FileChooser.c
 FILE_ROLLER_HEADERS = fileRoller/file-roller.h controls/optionals/FileChooser.h
 FILE_ROLLER_TARGET = blackline-file-roller
 
+# Bluetooth settings sources
+BLUETOOTH_SOURCES = tools/settings/bluetooth/bluetooth.c
+BLUETOOTH_HEADERS = tools/settings/bluetooth/bluetooth.h
+
 SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/display/display_settings.c \
                    tools/settings/display/orientation.c \
@@ -79,6 +83,7 @@ SETTINGS_SOURCES = tools/settings/settings.c \
                    tools/settings/network/network.c \
                    tools/settings/mouse/mouse.c \
                    tools/settings/mouse/mouse_style.c \
+                   tools/settings/bluetooth/bluetooth.c \
                    panel/internet_settings.c \
                    panel/wifi_list.c \
                    panel/wifi_connect.c \
@@ -107,6 +112,7 @@ SETTINGS_HEADERS = tools/settings/display/displaySettings.h \
                    tools/settings/network/network.h \
                    tools/settings/mouse/mouse.h \
                    tools/settings/mouse/mouse_style.h \
+                   tools/settings/bluetooth/bluetooth.h \
                    tools/settings/privacy/privacy.h \
                    tools/settings/privacy/system/system.h \
                    tools/settings/privacy/system/cache/cache.h \
@@ -238,6 +244,7 @@ $(FILE_ROLLER_TARGET): $(FILE_ROLLER_SOURCES) $(FILE_ROLLER_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(FILE_ROLLER_SOURCES) $(GTK_LIBS)
 	@echo "Built File Roller - Universal file viewer with integrated video player"
 
+# Settings tool
 $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/display
 	mkdir -p tools/settings/sound/output
@@ -246,14 +253,15 @@ $(SETTINGS_TARGET): $(SETTINGS_SOURCES) $(SETTINGS_HEADERS)
 	mkdir -p tools/settings/power
 	mkdir -p tools/settings/network
 	mkdir -p tools/settings/mouse
+	mkdir -p tools/settings/bluetooth
 	mkdir -p tools/settings/privacy/system/cache
 	mkdir -p tools/settings/privacy/system/file_history
 	mkdir -p tools/settings/privacy/system/location
 	mkdir -p tools/settings/privacy/system/screen_lock
 	mkdir -p tools/settings/privacy/devices
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -Ipanel -o $@ $(SETTINGS_SOURCES) $(GTK_LIBS) $(PULSE_LIBS) -lm -lasound -lX11
-	@echo "Built Settings tool with Display, Sound, Power, Network, Mouse, and Privacy tabs"
-	
+	@echo "Built Settings tool with Display, Sound, Power, Network, Mouse, Bluetooth, and Privacy tabs"
+
 # Terminal
 ifeq ($(HAVE_VTE),yes)
 TERMINAL_SOURCES = tools/terminal/terminal.c tools/window_resize.c
@@ -341,6 +349,7 @@ clean:
 	      tools/settings/*.o tools/settings/display/*.o tools/settings/sound/*.o \
 	      tools/settings/sound/output/*.o tools/settings/sound/input/*.o \
 	      tools/settings/sound/sounds/*.o tools/settings/power/*.o tools/settings/network/*.o \
+	      tools/settings/mouse/*.o tools/settings/bluetooth/*.o \
 	      tools/file-manager/*.o fileRoller/*.o controls/optionals/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
@@ -352,6 +361,7 @@ distclean: clean
 	      tools/settings/sound/*.gch tools/settings/sound/output/*.gch \
 	      tools/settings/sound/input/*.gch tools/settings/sound/sounds/*.gch \
 	      tools/settings/power/*.gch tools/settings/network/*.gch \
+	      tools/settings/mouse/*.gch tools/settings/bluetooth/*.gch \
 	      controls/optionals/*.gch
 	@echo "Removed generated header files"
 
@@ -375,6 +385,7 @@ install: all
 	-test -f blackline-session && sudo cp blackline-session /usr/local/bin/
 	mkdir -p ~/.local/share/applications
 	cp fileRoller/blackline-file-roller.desktop ~/.local/share/applications/ 2>/dev/null || true
+	sudo cp tools/settings/bluetooth/blt.txt /usr/local/share/blackline-bluetooth-commands.txt 2>/dev/null || true
 	update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
 	@echo "Installation complete!"
 
@@ -396,6 +407,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/lide-firefox
 	sudo rm -f /usr/local/bin/blackline-terminal
 	sudo rm -f /usr/local/bin/blackline-session
+	sudo rm -f /usr/local/share/blackline-bluetooth-commands.txt
 	rm -f ~/.local/share/applications/blackline-file-roller.desktop
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Uninstallation complete!"
