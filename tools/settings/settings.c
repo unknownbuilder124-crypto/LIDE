@@ -214,17 +214,6 @@ static GtkWidget *privacy_tab_new(void)
     return privacy_settings_tab_new();
 }
 
-static GtkWidget *search_tab_new(void)
-
-{
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 20);
-    
-    GtkWidget *label = gtk_label_new("Search settings not implemented yet.");
-    gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
-    
-    return box;
-}
 /*
 static GtkWidget *wifi_tab_new(void)
 
@@ -358,11 +347,6 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_notebook_append_page(GTK_NOTEBOOK(state->notebook),
                               privacy_tab_new(),
                               gtk_label_new("Privacy"));
-    
-    gtk_notebook_append_page(GTK_NOTEBOOK(state->notebook),
-                              search_tab_new(),
-                              gtk_label_new("Search"));
-    
     
     gtk_notebook_append_page(GTK_NOTEBOOK(state->notebook),
                               bluetooth_tab_new(),
