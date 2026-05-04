@@ -1,0 +1,144 @@
+# Bluetooth Control Commands for Linux
+# =====================================
+
+## SYSTEM INFORMATION
+# Check Bluetooth service status
+sudo systemctl status bluetooth
+
+# Start Bluetooth service
+sudo systemctl start bluetooth
+
+# Stop Bluetooth service
+sudo systemctl stop bluetooth
+
+# Enable Bluetooth on boot
+sudo systemctl enable bluetooth
+
+# Disable Bluetooth on boot
+sudo systemctl disable bluetooth
+
+# Check if Bluetooth adapter is present
+hciconfig -a
+# OR
+bluetoothctl show
+
+# Get detailed adapter information
+hciconfig hci0 up
+hciconfig hci0 down
+
+## BLUETOOTHCTL COMMANDS (Interactive Mode)
+
+# Enter interactive mode
+bluetoothctl
+
+# Common commands inside bluetoothctl:
+power on          # Turn Bluetooth adapter on
+power off         # Turn Bluetooth adapter off
+devices           # List paired devices
+scan on           # Start scanning for devices
+scan off          # Stop scanning
+pair <MAC>        # Pair with a device
+remove <MAC>      # Remove a paired device
+connect <MAC>     # Connect to a paired device
+disconnect <MAC>  # Disconnect a device
+trust <MAC>       # Auto-connect to device
+untrust <MAC>     # Remove auto-connect
+agent on          # Enable pairing agent
+default-agent     # Set default agent
+exit              # Exit bluetoothctl
+
+## PAIRING AND CONNECTION
+
+# Pair from command line (non-interactive)
+echo "pair <MAC>" | bluetoothctl
+echo "connect <MAC>" | bluetoothctl
+
+# Pair with PIN (legacy devices)
+bluetooth-agent <PIN> &
+
+# List paired devices without interactive mode
+bluetoothctl devices | grep Device
+
+# Show connection status
+bluetoothctl info <MAC>
+
+## RFKILL COMMANDS
+
+# Check Bluetooth soft/hard block
+rfkill list
+
+# Unblock Bluetooth
+rfkill unblock bluetooth
+
+# Block Bluetooth
+rfkill block bluetooth
+
+## FILE TRANSFER (OBEX)
+
+# Install obexftp or obexfs for file transfer
+# Send file to device
+obexftp -b <MAC> -p <file>
+
+# Pull file from device
+obexftp -b <MAC> -g <remote_file>
+
+## BLUEZ CONFIGURATION
+
+# Main configuration file
+/etc/bluetooth/main.conf
+
+# Edit configuration
+sudo nano /etc/bluetooth/main.conf
+
+# Common settings in main.conf:
+# Name = %h-%d     # Device name
+# Class = 0x000100 # Device class
+# DiscoverableTimeout = 0  # Always discoverable
+# PairableTimeout = 0      # Always pairable
+
+## DEBUGGING AND LOGS
+
+# View Bluetooth logs
+journalctl -u bluetooth -f
+
+# Real-time Bluetooth debugging
+btmon
+
+# Raw HCI dump
+hcidump -X
+
+# Check kernel messages for Bluetooth
+dmesg | grep -i bluetooth
+
+## RESET AND RECOVERY
+
+# Full Bluetooth stack reset
+sudo systemctl stop bluetooth
+sudo rfkill block bluetooth
+sudo rfkill unblock bluetooth
+sudo systemctl start bluetooth
+
+# Reset USB Bluetooth dongle
+lsusb | grep Bluetooth
+# Find bus and device number, then:
+sudo usb_modeswitch -v <vendor> -p <product> --reset-usb
+
+## QUICK STATUS CHECK SCRIPT
+
+# Create a status script
+cat > ~/bt-status.sh << 'EOF'
+#!/bin/bash
+echo "=== Bluetooth Status ==="
+sudo systemctl status bluetooth --no-pager | grep Active
+echo ""
+echo "=== Adapters ==="
+bluetoothctl show
+echo ""
+echo "=== RFKill ==="
+rfkill list bluetooth
+echo ""
+echo "=== Paired Devices ==="
+bluetoothctl devices
+EOF
+
+chmod +x ~/bt-status.sh

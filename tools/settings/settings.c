@@ -12,6 +12,7 @@
 #include "network/network.h"
 #include "mouse/mouse.h"
 #include "privacy/privacy.h"
+#include "bluetooth/bluetooth.h"
 
 /*
  * settings.c
@@ -231,13 +232,7 @@ static GtkWidget *wifi_tab_new(void)
 static GtkWidget *bluetooth_tab_new(void)
 
 {
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 20);
-    
-    GtkWidget *label = gtk_label_new("Bluetooth settings not implemented yet.");
-    gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
-    
-    return box;
+    return create_bluetooth_tab();
 }
 
 // ----------------------------------------------------------------------
