@@ -1,0 +1,454 @@
+
+┌──(israfil㉿KALI)-[~/Desktop/LIDE]
+└─$ ./run.sh
+Starting BlackLine...
+Found binaries:
+  WM: ./blackline-wm
+  Panel: ./blackline-panel
+  Background: ./blackline-background
+Using display :5
+Verifying X connection...
+X server is responding
+Starting window manager...
+Loaded wallpaper from ./images/logo.png
+Loaded 13 desktop icons from /home/israfil/Desktop
+Drew 13 icons on desktop
+Starting panel...
+Drew 13 icons on desktop
+Initializing minimized container
+Watching root window 0x480
+Container XID: 0x400004
+Container window initial position: 465,126
+Minimized container initialized and hidden
+Drew 13 icons on desktop
+UnmapNotify for window 0x400004
+Attempting to add window 0x400004
+Ignoring container itself
+UnmapNotify for window 0x400004
+Attempting to add window 0x400004
+Drew 13 icons on desktop
+Ignoring container itself
+Drew 13 icons on desktop
+MapNotify for window 0x400008
+Right-click on empty desktop
+MapNotify for window 0x200013
+Starting background...
+
+=========================================
+  BlackLine is running in 1152x648 window on display :5!
+=========================================
+  Press Ctrl+Shift to release mouse/keyboard
+  Just close the Xephyr window to exit
+  Or press Ctrl+C in this terminal
+=========================================
+
+Background service started
+[DEBUG] Read from config: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+[DEBUG] Wallpaper changed, applying: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+[DEBUG] Executing: feh --bg-scale '/home/israfil/Desktop/LIDE/images/walpapers/wal12.png' 2>&1
+[DEBUG] feh returned: 0
+UnmapNotify for window 0x200013
+Attempting to add window 0x200013
+DestroyNotify for window 0x200013
+Drew 13 icons on desktop
+[DEBUG] Read from config: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+grep: unrecognized option '---'
+Usage: grep [OPTION]... PATTERNS [FILE]...
+Try 'grep --help' for more information.
+[DEBUG] Read from config: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+Right-click on empty desktop
+MapNotify for window 0x200016
+[DEBUG] Read from config: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+UnmapNotify for window 0x200016
+Attempting to add window 0x200016
+DestroyNotify for window 0x200016
+Drew 13 icons on desktop
+[DEBUG] Read from config: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+Drew 13 icons on desktop
+MapNotify for window 0xc00003
+Drew 13 icons on desktop
+UnmapNotify for window 0xc00003
+Attempting to add window 0xc00003
+UnmapNotify for window 0xc00003
+Attempting to add window 0xc00003
+DestroyNotify for window 0xc00003
+Drew 13 icons on desktop
+DestroyNotify for window 0xc00001
+DestroyNotify for window 0xc00008
+[DEBUG] Read from config: /home/israfil/Desktop/LIDE/images/walpapers/wal12.png
+X connection to :5 broken (explicit kill or server shutdown).
+Shutting down BlackLine...
+BlackLine stopped.
+
+┌──(israfil㉿KALI)-[~/Desktop/LIDE]
+└─$ make clean
+rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
+      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
+      voidfox tools/firefox/firefox-wrapper blackline-terminal blackline-session blackline-image-viewer \
+      blackline-file-roller blackline-settings
+rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o \
+      tools/terminal/*.o launcher/*.o session/*.o tools/image-viewer/*.o \
+      tools/settings/*.o tools/settings/display/*.o tools/settings/sound/*.o \
+      tools/settings/sound/output/*.o tools/settings/sound/input/*.o \
+      tools/settings/sound/sounds/*.o tools/settings/power/*.o tools/settings/network/*.o \
+      tools/settings/mouse/*.o tools/settings/privacy/*.o tools/settings/privacy/system/*.o \
+      tools/settings/privacy/system/cache/*.o tools/settings/privacy/system/file_history/*.o \
+      tools/settings/privacy/system/location/*.o tools/settings/privacy/system/screen_lock/*.o \
+      tools/settings/privacy/devices/*.o \
+      tools/file-manager/*.o fileRoller/*.o controls/optionals/*.o
+rm -f ~/.config/blackline/tools_view_mode.conf
+Clean complete!
+
+┌──(israfil㉿KALI)-[~/Desktop/LIDE]
+└─$ make
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-wm wm/wm.c controls/optionals/O_tab.c controls/optionals/FileChooser.c -lX11 -lImlib2 -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+wm/wm.c: In function ‘render_desktop_icon’:
+wm/wm.c:772:9: warning: unused variable ‘screen’ [-Wunused-variable]
+  772 |     int screen = DefaultScreen(d);
+      |         ^~~~~~
+wm/wm.c: At top level:
+wm/wm.c:1257:13: warning: ‘context_open_file_manager’ defined but not used [-Wunused-function]
+ 1257 | static void context_open_file_manager(void)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+wm/wm.c:1124:13: warning: ‘desktop_arrange_icons’ defined but not used [-Wunused-function]
+ 1124 | static void desktop_arrange_icons(Display *d, const char *mode)
+      |             ^~~~~~~~~~~~~~~~~~~~~
+wm/wm.c:1043:13: warning: ‘desktop_open_terminal’ defined but not used [-Wunused-function]
+ 1043 | static void desktop_open_terminal(void)
+      |             ^~~~~~~~~~~~~~~~~~~~~
+wm/wm.c:1031:13: warning: ‘desktop_copy’ defined but not used [-Wunused-function]
+ 1031 | static void desktop_copy(DesktopIcon *icon)
+      |             ^~~~~~~~~~~~
+wm/wm.c:1017:13: warning: ‘desktop_cut’ defined but not used [-Wunused-function]
+ 1017 | static void desktop_cut(DesktopIcon *icon)
+      |             ^~~~~~~~~~~
+wm/wm.c:974:13: warning: ‘desktop_paste’ defined but not used [-Wunused-function]
+  974 | static void desktop_paste(Display *d)
+      |             ^~~~~~~~~~~~~
+wm/wm.c:942:13: warning: ‘desktop_new_file’ defined but not used [-Wunused-function]
+  942 | static void desktop_new_file(Display *d)
+      |             ^~~~~~~~~~~~~~~~
+wm/wm.c:915:13: warning: ‘desktop_new_folder’ defined but not used [-Wunused-function]
+  915 | static void desktop_new_folder(Display *d)
+      |             ^~~~~~~~~~~~~~~~~~
+wm/wm.c:164:21: warning: ‘context_icon’ defined but not used [-Wunused-variable]
+  164 | static DesktopIcon *context_icon = NULL;  // Icon being right-clicked
+      |                     ^~~~~~~~~~~~
+controls/optionals/FileChooser.c: In function ‘on_action_clicked’:
+controls/optionals/FileChooser.c:498:50: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+  498 |     snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, filename);
+      |                                                  ^
+controls/optionals/FileChooser.c:498:5: note: ‘snprintf’ output 2 or more bytes (assuming 1025) into a destination of size 1024
+  498 |     snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, filename);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c:507:5: warning: ‘strncpy’ output may be truncated copying 1023 bytes from a string of length 1023 [-Wstringop-truncation]
+  507 |     strncpy(chooser->selected_path, full_path, sizeof(chooser->selected_path) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c: In function ‘file_chooser_load_directory’:
+controls/optionals/FileChooser.c:254:52: warning: ‘%s’ directive output may be truncated writing up to 255 bytes into a region of size between 0 and 1023 [-Wformat-truncation=]
+  254 |         snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, entry->d_name);
+      |                                                    ^~
+controls/optionals/FileChooser.c:254:9: note: ‘snprintf’ output between 2 and 1280 bytes into a destination of size 1024
+  254 |         snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, entry->d_name);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c:260:9: warning: ‘strncpy’ output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+  260 |         strncpy(files[count].name, entry->d_name, sizeof(files[count].name) - 1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c:261:9: warning: ‘strncpy’ output may be truncated copying 1023 bytes from a string of length 1023 [-Wstringop-truncation]
+  261 |         strncpy(files[count].full_path, full_path, sizeof(files[count].full_path) - 1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -I/usr/include/libnm -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-panel panel/panel.c panel/network_stats.c tools/minimized_container.c panel/connection_details.c panel/internet_settings.c panel/wifi_list.c panel/wifi_connect.c panel/clock.c panel/network_manager.c panel/upload.c panel/download.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lX11 -lnm -lgio-2.0 -lgobject-2.0 -lglib-2.0
+In file included from panel/panel.c:35:
+panel/../tools/system-monitor/cpu.c: In function ‘draw_cpu_graph’:
+panel/../tools/system-monitor/cpu.c:112:13: warning: unused variable ‘start’ [-Wunused-variable]
+  112 |         int start = cpu_history_index;
+      |             ^~~~~
+In file included from panel/panel.c:36:
+panel/../tools/system-monitor/memory.c: In function ‘update_mem_usage’:
+panel/../tools/system-monitor/memory.c:27:40: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   27 |         if (sscanf(line, "MemTotal: %llu kB", &mem->total) == 1) continue;
+      |                                     ~~~^      ~~~~~~~~~~~
+      |                                        |      |
+      |                                        |      guint64 * {aka long unsigned int *}
+      |                                        long long unsigned int *
+      |                                     %lu
+panel/../tools/system-monitor/memory.c:28:39: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   28 |         if (sscanf(line, "MemFree: %llu kB", &mem->free) == 1) continue;
+      |                                    ~~~^      ~~~~~~~~~~
+      |                                       |      |
+      |                                       |      guint64 * {aka long unsigned int *}
+      |                                       long long unsigned int *
+      |                                    %lu
+panel/../tools/system-monitor/memory.c:29:44: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   29 |         if (sscanf(line, "MemAvailable: %llu kB", &mem->available) == 1) continue;
+      |                                         ~~~^      ~~~~~~~~~~~~~~~
+      |                                            |      |
+      |                                            |      guint64 * {aka long unsigned int *}
+      |                                            long long unsigned int *
+      |                                         %lu
+panel/../tools/system-monitor/memory.c:30:38: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   30 |         if (sscanf(line, "Cached: %llu kB", &mem->cached) == 1) continue;
+      |                                   ~~~^      ~~~~~~~~~~~~
+      |                                      |      |
+      |                                      |      guint64 * {aka long unsigned int *}
+      |                                      long long unsigned int *
+      |                                   %lu
+panel/panel.c: In function ‘apply_panel_css’:
+panel/panel.c:1350:9: warning: ‘gtk_widget_override_background_color’ is deprecated [-Wdeprecated-declarations]
+ 1350 |         gtk_widget_override_background_color(window, GTK_STATE_FLAG_NORMAL, &transparent);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkapplication.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkwindow.h:33,
+                 from /usr/include/gtk-3.0/gtk/gtkdialog.h:32,
+                 from /usr/include/gtk-3.0/gtk/gtkaboutdialog.h:30,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:31,
+                 from panel/panel.c:1:
+/usr/include/gtk-3.0/gtk/gtkwidget.h:1148:14: note: declared here
+ 1148 | void         gtk_widget_override_background_color (GtkWidget     *widget,
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+panel/connection_details.c: In function ‘show_connection_details’:
+panel/connection_details.c:50:10: warning: unused variable ‘netmask’ [-Wunused-variable]
+   50 |     char netmask[256] = "unknown";
+      |          ^~~~~~~
+panel/internet_settings.c:225:20: warning: ‘get_connection_method’ defined but not used [-Wunused-function]
+  225 | static const char* get_connection_method(const char *iface)
+      |                    ^~~~~~~~~~~~~~~~~~~~~
+panel/internet_settings.c:25:14: warning: ‘config_path’ defined but not used [-Wunused-variable]
+   25 | static char *config_path = NULL;
+      |              ^~~~~~~~~~~
+panel/internet_settings.c: In function ‘get_config_file’:
+panel/internet_settings.c:73:37: warning: ‘%s’ directive output may be truncated writing 22 bytes into a region of size between 1 and 512 [-Wformat-truncation=]
+   73 |     snprintf(path, sizeof(path), "%s%s", get_config_dir(), NETWORK_CONFIG_FILE);
+      |                                     ^~
+panel/internet_settings.c:73:5: note: ‘snprintf’ output between 23 and 534 bytes into a destination of size 512
+   73 |     snprintf(path, sizeof(path), "%s%s", get_config_dir(), NETWORK_CONFIG_FILE);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+panel/wifi_list.c:111:13: warning: ‘set_wifi_enabled’ defined but not used [-Wunused-function]
+  111 | static void set_wifi_enabled(gboolean enabled)
+      |             ^~~~~~~~~~~~~~~~
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-launcher launcher/launcher.c launcher/search.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-tools tools/tools_container.c tools/auto.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lX11 -lm
+tools/tools_container.c: In function ‘create_tools_container’:
+tools/tools_container.c:496:9: warning: ‘gtk_widget_override_font’ is deprecated [-Wdeprecated-declarations]
+  496 |         gtk_widget_override_font(icon_label, font_desc);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkapplication.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkwindow.h:33,
+                 from /usr/include/gtk-3.0/gtk/gtkdialog.h:32,
+                 from /usr/include/gtk-3.0/gtk/gtkaboutdialog.h:30,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:31,
+                 from tools/tools_container.c:1:
+/usr/include/gtk-3.0/gtk/gtkwidget.h:1153:14: note: declared here
+ 1153 | void         gtk_widget_override_font             (GtkWidget                  *widget,
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~
+Failed to register: Timeout was reached
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/sysprof-6 -pthread -o blackline-background tools/background.c -lglib-2.0
+tools/background.c: In function ‘main’:
+tools/background.c:104:13: warning: ‘strncpy’ output may be truncated copying 511 bytes from a string of length 511 [-Wstringop-truncation]
+  104 |             strncpy(last_wallpaper, wallpaper_path, sizeof(last_wallpaper) - 1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tools/background.c:104:13: warning: ‘strncpy’ output may be truncated copying 511 bytes from a string of length 511 [-Wstringop-truncation]
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-fm tools/file-manager/fm.c tools/file-manager/browser.c tools/file-manager/recycle_bin.c tools/image-viewer/image-viewer-launcher.c fileRoller/file-roller-launcher.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+tools/file-manager/fm.c:873:13: warning: ‘fm_delete_permanently’ defined but not used [-Wunused-function]
+  873 | static void fm_delete_permanently(const gchar *path)
+      |             ^~~~~~~~~~~~~~~~~~~~~
+Failed to register: Timeout was reached
+tools/file-manager/browser.c:54:15: warning: ‘format_time’ defined but not used [-Wunused-function]
+   54 | static gchar *format_time(GDateTime *dt)
+      |               ^~~~~~~~~~~
+tools/file-manager/browser.c:39:15: warning: ‘format_size’ defined but not used [-Wunused-function]
+   39 | static gchar *format_size(goffset size)
+      |               ^~~~~~~~~~~
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-editor tools/text_editor/editor.c tools/text_editor/edit.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-calculator tools/calculator/calculator.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lm
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-system-monitor tools/system-monitor/monitor.c tools/system-monitor/cpu.c tools/system-monitor/memory.c tools/system-monitor/processes.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+tools/system-monitor/cpu.c: In function ‘draw_cpu_graph’:
+tools/system-monitor/cpu.c:112:13: warning: unused variable ‘start’ [-Wunused-variable]
+  112 |         int start = cpu_history_index;
+      |             ^~~~~
+tools/system-monitor/memory.c: In function ‘update_mem_usage’:
+tools/system-monitor/memory.c:27:40: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   27 |         if (sscanf(line, "MemTotal: %llu kB", &mem->total) == 1) continue;
+      |                                     ~~~^      ~~~~~~~~~~~
+      |                                        |      |
+      |                                        |      guint64 * {aka long unsigned int *}
+      |                                        long long unsigned int *
+      |                                     %lu
+tools/system-monitor/memory.c:28:39: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   28 |         if (sscanf(line, "MemFree: %llu kB", &mem->free) == 1) continue;
+      |                                    ~~~^      ~~~~~~~~~~
+      |                                       |      |
+      |                                       |      guint64 * {aka long unsigned int *}
+      |                                       long long unsigned int *
+      |                                    %lu
+tools/system-monitor/memory.c:29:44: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   29 |         if (sscanf(line, "MemAvailable: %llu kB", &mem->available) == 1) continue;
+      |                                         ~~~^      ~~~~~~~~~~~~~~~
+      |                                            |      |
+      |                                            |      guint64 * {aka long unsigned int *}
+      |                                            long long unsigned int *
+      |                                         %lu
+tools/system-monitor/memory.c:30:38: warning: format ‘%llu’ expects argument of type ‘long long unsigned int *’, but argument 3 has type ‘guint64 *’ {aka ‘long unsigned int *’} [-Wformat=]
+   30 |         if (sscanf(line, "Cached: %llu kB", &mem->cached) == 1) continue;
+      |                                   ~~~^      ~~~~~~~~~~~~
+      |                                      |      |
+      |                                      |      guint64 * {aka long unsigned int *}
+      |                                      long long unsigned int *
+      |                                   %lu
+tools/system-monitor/processes.c: In function ‘get_process_list’:
+tools/system-monitor/processes.c:154:45: warning: ‘%s’ directive output may be truncated writing up to 255 bytes into a region of size 250 [-Wformat-truncation=]
+  154 |         snprintf(path, sizeof(path), "/proc/%s", entry->d_name);
+      |                                             ^~
+tools/system-monitor/processes.c:154:9: note: ‘snprintf’ output between 7 and 262 bytes into a destination of size 256
+  154 |         snprintf(path, sizeof(path), "/proc/%s", entry->d_name);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -I/usr/include/webkitgtk-4.1 -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/libsoup-3.0 -I/usr/include/libmount -I/usr/include/blkid -isystem /usr/include/mit-krb5 -isystem /usr/include/mit-krb5 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/sysprof-6 -pthread -o voidfox tools/web-browser/voidfox.c tools/web-browser/browser.c tools/web-browser/tab.c tools/web-browser/app_menu.c tools/web-browser/bookmarks.c tools/web-browser/history.c tools/web-browser/downloads.c tools/web-browser/passwords.c tools/web-browser/extensions.c tools/web-browser/download-stats.c tools/web-browser/settings.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lwebkit2gtk-4.1 -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lsoup-3.0 -lgio-2.0 -lgmodule-2.0 -pthread -ljavascriptcoregtk-4.1 -lgobject-2.0 -lglib-2.0
+In file included from tools/web-browser/browser.c:3:
+tools/web-browser/bookmarks.h:9:1: warning: ‘/*’ within comment [-Wcomment]
+    9 | /*
+In file included from tools/web-browser/browser.c:4:
+tools/web-browser/history.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+tools/web-browser/tab.c:7:1: warning: ‘/*’ within comment [-Wcomment]
+    7 | /*
+tools/web-browser/tab.c:17:2: warning: ‘/*’ within comment [-Wcomment]
+   17 |  /**
+In file included from tools/web-browser/app_menu.c:2:
+tools/web-browser/bookmarks.h:9:1: warning: ‘/*’ within comment [-Wcomment]
+    9 | /*
+In file included from tools/web-browser/app_menu.c:3:
+tools/web-browser/history.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+In file included from tools/web-browser/app_menu.c:4:
+tools/web-browser/downloads.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+In file included from tools/web-browser/app_menu.c:6:
+tools/web-browser/extensions.h:9:1: warning: ‘/*’ within comment [-Wcomment]
+    9 | /*
+In file included from tools/web-browser/bookmarks.c:1:
+tools/web-browser/bookmarks.h:9:1: warning: ‘/*’ within comment [-Wcomment]
+    9 | /*
+In file included from tools/web-browser/history.c:1:
+tools/web-browser/history.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+In file included from tools/web-browser/downloads.c:1:
+tools/web-browser/downloads.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+In file included from tools/web-browser/extensions.c:1:
+tools/web-browser/extensions.h:9:1: warning: ‘/*’ within comment [-Wcomment]
+    9 | /*
+In file included from tools/web-browser/download-stats.c:1:
+tools/web-browser/download-stats.h:9:1: warning: ‘/*’ within comment [-Wcomment]
+    9 | /*
+In file included from tools/web-browser/download-stats.c:2:
+tools/web-browser/downloads.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+In file included from tools/web-browser/settings.c:2:
+tools/web-browser/history.h:10:1: warning: ‘/*’ within comment [-Wcomment]
+   10 | /*
+tools/web-browser/settings.c:177:13: warning: ‘free_settings_strings’ defined but not used [-Wunused-function]
+  177 | static void free_settings_strings(void)
+      |             ^~~~~~~~~~~~~~~~~~~~~
+free(): invalid size
+Built VoidFox with webkit2gtk-4.1
+mkdir -p tools/firefox
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o tools/firefox/firefox-wrapper tools/firefox/firefox-wrapper.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+Built Firefox wrapper
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -I/usr/include/vte-2.91 -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-terminal tools/terminal/terminal.c tools/window_resize.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lvte-2.91 -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-image-viewer tools/image-viewer/image-viewer.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -o blackline-file-roller fileRoller/file-roller.c controls/optionals/FileChooser.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0
+controls/optionals/FileChooser.c: In function ‘on_action_clicked’:
+controls/optionals/FileChooser.c:498:50: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+  498 |     snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, filename);
+      |                                                  ^
+controls/optionals/FileChooser.c:498:5: note: ‘snprintf’ output 2 or more bytes (assuming 1025) into a destination of size 1024
+  498 |     snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, filename);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c:507:5: warning: ‘strncpy’ output may be truncated copying 1023 bytes from a string of length 1023 [-Wstringop-truncation]
+  507 |     strncpy(chooser->selected_path, full_path, sizeof(chooser->selected_path) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c: In function ‘file_chooser_load_directory’:
+controls/optionals/FileChooser.c:254:52: warning: ‘%s’ directive output may be truncated writing up to 255 bytes into a region of size between 0 and 1023 [-Wformat-truncation=]
+  254 |         snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, entry->d_name);
+      |                                                    ^~
+controls/optionals/FileChooser.c:254:9: note: ‘snprintf’ output between 2 and 1280 bytes into a destination of size 1024
+  254 |         snprintf(full_path, sizeof(full_path), "%s/%s", chooser->current_path, entry->d_name);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c:260:9: warning: ‘strncpy’ output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+  260 |         strncpy(files[count].name, entry->d_name, sizeof(files[count].name) - 1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+controls/optionals/FileChooser.c:261:9: warning: ‘strncpy’ output may be truncated copying 1023 bytes from a string of length 1023 [-Wstringop-truncation]
+  261 |         strncpy(files[count].full_path, full_path, sizeof(files[count].full_path) - 1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Built File Roller - Universal file viewer with custom file chooser
+mkdir -p tools/settings/display
+mkdir -p tools/settings/sound/output
+mkdir -p tools/settings/sound/input
+mkdir -p tools/settings/sound/sounds
+mkdir -p tools/settings/power
+mkdir -p tools/settings/network
+mkdir -p tools/settings/mouse
+mkdir -p tools/settings/privacy/system/cache
+mkdir -p tools/settings/privacy/system/file_history
+mkdir -p tools/settings/privacy/system/location
+mkdir -p tools/settings/privacy/system/screen_lock
+mkdir -p tools/settings/privacy/devices
+gcc -Wall -O2 -g -I. -Iinclude -Itools -Ipanel -Icontrols/optionals -I/usr/include/gtk-3.0 -I/usr/include/pango-1.0 -I/usr/include/cloudproviders -I/usr/include/cairo -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/at-spi2-atk/2.0 -I/usr/include/at-spi-2.0 -I/usr/include/atk-1.0 -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -I/usr/include/fribidi -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/gio-unix-2.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread -Ipanel -o blackline-settings tools/settings/settings.c tools/settings/display/display_settings.c tools/settings/display/orientation.c tools/settings/display/refresh_rate.c tools/settings/display/resolution.c tools/settings/display/wallpaper_settings.c tools/settings/sound/sound_tab.c tools/settings/sound/test_sound_tab.c tools/settings/sound/output/output_volume.c tools/settings/sound/output/balance.c tools/settings/sound/output/show_output_device.c tools/settings/sound/input/input_volume.c tools/settings/sound/input/show_input_device.c tools/settings/sound/sounds/volume_levels.c tools/settings/sound/sounds/alern_sounds.c tools/settings/power/power_settings.c tools/settings/power/batary.c tools/settings/power/mode.c tools/settings/network/network.c tools/settings/mouse/mouse.c tools/settings/mouse/mouse_style.c panel/internet_settings.c panel/wifi_list.c panel/wifi_connect.c panel/connection_details.c tools/settings/privacy/privacy.c tools/settings/privacy/system/system.c tools/settings/privacy/system/cache/cache.c tools/settings/privacy/system/file_history/history.c tools/settings/privacy/system/location/location.c tools/settings/privacy/system/screen_lock/screen_lock.c tools/settings/privacy/devices/device_privacy.c -lgtk-3 -lgdk-3 -lz -lpangocairo-1.0 -lcairo-gobject -lgdk_pixbuf-2.0 -latk-1.0 -lpango-1.0 -lcairo -lharfbuzz -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lpulse -lpulse-mainloop-glib -lm -lasound -lX11
+tools/settings/display/wallpaper_settings.c:156:13: warning: ‘on_wallpaper_changed’ defined but not used [-Wunused-function]
+  156 | static void on_wallpaper_changed(GtkComboBox *combo, gpointer user_data)
+      |             ^~~~~~~~~~~~~~~~~~~~
+tools/settings/display/wallpaper_settings.c: In function ‘on_wallpaper_thumbnail_clicked’:
+tools/settings/display/wallpaper_settings.c:124:55: warning: ‘%s’ directive output may be truncated writing up to 511 bytes into a region of size 502 [-Wformat-truncation=]
+  124 |     snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p '%s'", config_dir);
+      |                                                       ^~    ~~~~~~~~~~
+In function ‘apply_wallpaper’,
+    inlined from ‘on_wallpaper_thumbnail_clicked’ at tools/settings/display/wallpaper_settings.c:262:19:
+tools/settings/display/wallpaper_settings.c:124:5: note: ‘snprintf’ output between 12 and 523 bytes into a destination of size 512
+  124 |     snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p '%s'", config_dir);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tools/settings/display/wallpaper_settings.c: In function ‘on_wallpaper_thumbnail_clicked’:
+tools/settings/display/wallpaper_settings.c:130:51: warning: ‘/current_wallpaper.conf’ directive output may be truncated writing 23 bytes into a region of size between 1 and 512 [-Wformat-truncation=]
+  130 |     snprintf(config_path, sizeof(config_path), "%s/current_wallpaper.conf", config_dir);
+      |                                                   ^~~~~~~~~~~~~~~~~~~~~~~
+In function ‘apply_wallpaper’,
+    inlined from ‘on_wallpaper_thumbnail_clicked’ at tools/settings/display/wallpaper_settings.c:262:19:
+tools/settings/display/wallpaper_settings.c:130:5: note: ‘snprintf’ output between 24 and 535 bytes into a destination of size 512
+  130 |     snprintf(config_path, sizeof(config_path), "%s/current_wallpaper.conf", config_dir);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tools/settings/sound/output/balance.c:49:13: warning: ‘get_default_sink_name’ declared ‘static’ but never defined [-Wunused-function]
+   49 | static void get_default_sink_name(void);
+      |             ^~~~~~~~~~~~~~~~~~~~~
+tools/settings/sound/input/show_input_device.c: In function ‘source_info_callback’:
+tools/settings/sound/input/show_input_device.c:27:22: warning: initialization discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+   27 |         char *desc = i->description ? i->description : i->name;
+      |                      ^
+panel/internet_settings.c:225:20: warning: ‘get_connection_method’ defined but not used [-Wunused-function]
+  225 | static const char* get_connection_method(const char *iface)
+      |                    ^~~~~~~~~~~~~~~~~~~~~
+panel/internet_settings.c:25:14: warning: ‘config_path’ defined but not used [-Wunused-variable]
+   25 | static char *config_path = NULL;
+      |              ^~~~~~~~~~~
+panel/internet_settings.c: In function ‘get_config_file’:
+panel/internet_settings.c:73:37: warning: ‘%s’ directive output may be truncated writing 22 bytes into a region of size between 1 and 512 [-Wformat-truncation=]
+   73 |     snprintf(path, sizeof(path), "%s%s", get_config_dir(), NETWORK_CONFIG_FILE);
+      |                                     ^~
+panel/internet_settings.c:73:5: note: ‘snprintf’ output between 23 and 534 bytes into a destination of size 512
+   73 |     snprintf(path, sizeof(path), "%s%s", get_config_dir(), NETWORK_CONFIG_FILE);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+panel/wifi_list.c:111:13: warning: ‘set_wifi_enabled’ defined but not used [-Wunused-function]
+  111 | static void set_wifi_enabled(gboolean enabled)
+      |             ^~~~~~~~~~~~~~~~
+panel/connection_details.c: In function ‘show_connection_details’:
+panel/connection_details.c:50:10: warning: unused variable ‘netmask’ [-Wunused-variable]
+   50 |     char netmask[256] = "unknown";
+      |          ^~~~~~~
+tools/settings/privacy/system/cache/cache.c:33:20: warning: ‘cache_dirs’ defined but not used [-Wunused-variable]
+   33 | static const char *cache_dirs[] = {
+      |                    ^~~~~~~~~~
+tools/settings/privacy/system/screen_lock/screen_lock.c:139:13: warning: ‘settings_changed’ defined but not used [-Wunused-function]
+  139 | static void settings_changed(void)
+      |             ^~~~~~~~~~~~~~~~
+Built Settings tool with Display, Sound, Power, Network, Mouse, and Privacy tabs
+
+┌──(israfil㉿KALI)-[~/Desktop/LIDE]
+└─$ 

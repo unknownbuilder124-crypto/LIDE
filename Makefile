@@ -127,10 +127,15 @@ SETTINGS_TARGET = blackline-settings
 TOOLS_SOURCES = tools/tools_container.c tools/auto.c tools/window_resize.c
 TOOLS_HEADERS = tools/auto.h tools/minimized_container.h tools/window_resize.h
 
+# Command Palette sources
+CP_SOURCES = cp/command-palette.c cp/commands.c cp/plugins.c
+CP_HEADERS = cp/command-palette.h cp/commands.h cp/plugins.h
+CP_TARGET = blackline-command-palette
+
 # Base targets
 all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
-     voidfox firefox-wrapper blackline-terminal $(IMAGE_VIEWER_TARGET) $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET)
+     voidfox firefox-wrapper blackline-terminal $(IMAGE_VIEWER_TARGET) $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET) $(CP_TARGET)
 
 # Window Manager with File Manager Integration - includes file browser functionality
 # Compiles wm.c with file manager sources, window resize, and browser support
@@ -185,6 +190,10 @@ LAUNCHER_HEADERS = launcher/launcher.h
 
 blackline-launcher: $(LAUNCHER_SOURCES) $(LAUNCHER_HEADERS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(LAUNCHER_SOURCES) $(GTK_LIBS)
+
+# Command Palette - unified global command launcher
+$(CP_TARGET): $(CP_SOURCES) $(CP_HEADERS)
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(CP_SOURCES) $(GTK_LIBS)
 
 # Tools Container - includes auto.c for app detection
 blackline-tools: $(TOOLS_SOURCES) $(TOOLS_HEADERS)
@@ -343,14 +352,14 @@ clean:
 	rm -f blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
 	      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
 	      voidfox $(FIREFOX_WRAPPER) blackline-terminal blackline-session $(IMAGE_VIEWER_TARGET) \
-	      $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET)
+	      $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET) $(CP_TARGET)
 	rm -f *.o tools/*.o panel/*.o tools/system-monitor/*.o tools/web-browser/*.o \
 	      tools/terminal/*.o launcher/*.o session/*.o tools/image-viewer/*.o \
 	      tools/settings/*.o tools/settings/display/*.o tools/settings/sound/*.o \
 	      tools/settings/sound/output/*.o tools/settings/sound/input/*.o \
 	      tools/settings/sound/sounds/*.o tools/settings/power/*.o tools/settings/network/*.o \
 	      tools/settings/mouse/*.o tools/settings/bluetooth/*.o \
-	      tools/file-manager/*.o fileRoller/*.o controls/optionals/*.o
+	      tools/file-manager/*.o fileRoller/*.o controls/optionals/*.o cp/*.o
 	rm -f ~/.config/blackline/tools_view_mode.conf
 	@echo "Clean complete!"
 
@@ -379,6 +388,7 @@ install: all
 	sudo cp $(IMAGE_VIEWER_TARGET) /usr/local/bin/
 	sudo cp $(FILE_ROLLER_TARGET) /usr/local/bin/
 	sudo cp $(SETTINGS_TARGET) /usr/local/bin/
+	sudo cp $(CP_TARGET) /usr/local/bin/
 	sudo cp voidfox /usr/local/bin/
 	sudo cp $(FIREFOX_WRAPPER) /usr/local/bin/lide-firefox
 	-test -f blackline-terminal && sudo cp blackline-terminal /usr/local/bin/
@@ -403,6 +413,7 @@ uninstall:
 	sudo rm -f /usr/local/bin/$(IMAGE_VIEWER_TARGET)
 	sudo rm -f /usr/local/bin/$(FILE_ROLLER_TARGET)
 	sudo rm -f /usr/local/bin/$(SETTINGS_TARGET)
+	sudo rm -f /usr/local/bin/$(CP_TARGET)
 	sudo rm -f /usr/local/bin/voidfox
 	sudo rm -f /usr/local/bin/lide-firefox
 	sudo rm -f /usr/local/bin/blackline-terminal

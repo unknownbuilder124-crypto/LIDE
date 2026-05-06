@@ -1453,9 +1453,24 @@ int main(void)
             
             case KeyPress: {
                 KeySym keysym = XLookupKeysym(&ev.xkey, 0);
+                unsigned int mods = ev.xkey.state;
+
+                /* F5: Refresh desktop files */
                 if (keysym == XK_F5) {
                     desktop_show_files(d);
                 }
+
+                /* Ctrl+Shift+P: Open Command Palette */
+                if (keysym == XK_p && (mods & ControlMask) && (mods & ShiftMask)) {
+                    char *const argv[] = { "./blackline-command-palette", NULL };
+                    pid_t pid = fork();
+                    if (pid == 0) {
+                        setsid();
+                        execvp(argv[0], argv);
+                        exit(1);
+                    }
+                }
+
                 break;
             }
         }
