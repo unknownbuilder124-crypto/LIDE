@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Clipboard Manager
+GenericName=Clipboard Manager
+Comment=Manage clipboard history, pin items, and paste text or images
+Exec=blackline-clipboard
+Icon=edit-paste
+Terminal=false
+Type=Application
+Categories=Utility;GTK;
+Keywords=clipboard;history;paste;copy;
+StartupNotify=true
+

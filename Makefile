@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -O2 -g -I. -Iinclude -Itools -Itools/file-manager -Ipanel -Icontrols/optionals -IfileRoller
+CFLAGS = -Wall -O2 -g -I. -Iinclude -Itools -Itools/file-manager -Ipanel -Icontrols/optionals -Icontrols/copy -Icontrols/paste -IfileRoller
 GTK_CFLAGS = $(shell pkg-config --cflags gtk+-3.0)
 GTK_LIBS = $(shell pkg-config --libs gtk+-3.0)
 X11_LIBS = -lX11
@@ -127,15 +127,23 @@ SETTINGS_TARGET = blackline-settings
 TOOLS_SOURCES = tools/tools_container.c tools/auto.c tools/window_resize.c
 TOOLS_HEADERS = tools/auto.h tools/minimized_container.h tools/window_resize.h
 
+
 # Command Palette sources
-CP_SOURCES = cp/command-palette.c cp/commands.c cp/plugins.c
+CP_SOURCES = cp/command-palette.c cp/commands.c cp/plugins.c \
+             panel/network_stats.c panel/wifi_list.c panel/wifi_connect.c \
+             panel/internet_settings.c panel/connection_details.c
 CP_HEADERS = cp/command-palette.h cp/commands.h cp/plugins.h
 CP_TARGET = blackline-command-palette
+
+# Clipboard Manager sources
+CLIPBOARD_SOURCES = tools/clipboard/clipboard.c controls/copy/copy.c controls/paste/paste.c
+CLIPBOARD_HEADERS = tools/clipboard/clipboard.h controls/copy/copy.h controls/paste/paste.h
+CLIPBOARD_TARGET = blackline-clipboard
 
 # Base targets
 all: blackline-wm blackline-panel blackline-launcher blackline-tools blackline-background \
      blackline-fm blackline-editor blackline-calculator blackline-system-monitor \
-     voidfox firefox-wrapper blackline-terminal $(IMAGE_VIEWER_TARGET) $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET) $(CP_TARGET)
+     blackline-clipboard voidfox firefox-wrapper blackline-terminal $(IMAGE_VIEWER_TARGET) $(FILE_ROLLER_TARGET) $(SETTINGS_TARGET) $(CP_TARGET)
 
 # Window Manager with File Manager Integration - includes file browser functionality
 # Compiles wm.c with file manager sources, window resize, and browser support
@@ -193,7 +201,11 @@ blackline-launcher: $(LAUNCHER_SOURCES) $(LAUNCHER_HEADERS)
 
 # Command Palette - unified global command launcher
 $(CP_TARGET): $(CP_SOURCES) $(CP_HEADERS)
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(CP_SOURCES) $(GTK_LIBS)
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(CP_SOURCES) $(GTK_LIBS) $(X11_LIBS)
+
+# Clipboard Manager - history, plain-text paste, and pins
+$(CLIPBOARD_TARGET): $(CLIPBOARD_SOURCES) $(CLIPBOARD_HEADERS)
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) -o $@ $(CLIPBOARD_SOURCES) $(GTK_LIBS)
 
 # Tools Container - includes auto.c for app detection
 blackline-tools: $(TOOLS_SOURCES) $(TOOLS_HEADERS)

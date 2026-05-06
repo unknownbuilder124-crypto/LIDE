@@ -1157,15 +1157,21 @@ static void launch_tools(GtkButton *button, gpointer data)
 }
 
 /**
- * Placeholder callback for buttons with no functionality.
+ * Launches the command palette from the panel.
  *
  * @param button The button that was clicked.
  * @param data   User data (unused).
  */
-static void do_nothing(GtkButton *button, gpointer data)
+static void launch_command_palette(GtkButton *button, gpointer data)
 {
     (void)button;
     (void)data;
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("./blackline-command-palette", "blackline-command-palette", NULL);
+        exit(0);
+    }
 }
 
 /**
@@ -1397,9 +1403,9 @@ static void activate(GtkApplication *app, gpointer user_data)
     GtkWidget *left_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_box_pack_start(GTK_BOX(box), left_box, FALSE, FALSE, 0);
     
-    /* BlackLine button */
+    /* BlackLine button opens the command palette */
     GtkWidget *btn1 = gtk_button_new_with_label("BlackLine");
-    g_signal_connect(btn1, "clicked", G_CALLBACK(do_nothing), NULL);
+    g_signal_connect(btn1, "clicked", G_CALLBACK(launch_command_palette), NULL);
     gtk_box_pack_start(GTK_BOX(left_box), btn1, FALSE, FALSE, 2);
     
     /* Tools button */

@@ -245,6 +245,13 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
     return FALSE;
 }
 
+static void on_exit_button_clicked(GtkButton *button, gpointer data)
+{
+    (void)button;
+    if (!data) return;
+    gtk_window_close(GTK_WINDOW(data));
+}
+
 /**
  * Toggle function for testing - shows/hides all results.
  * Can be used for demo mode.
@@ -281,11 +288,20 @@ static void activate(GtkApplication *app, gpointer user_data)
     gtk_container_set_border_width(GTK_CONTAINER(box), 10);
     gtk_container_add(GTK_CONTAINER(state->window), box);
 
-    /* Search entry with placeholder */
+    /* Top row with search entry and exit button */
+    GtkWidget *search_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     state->search_entry = gtk_search_entry_new();
     gtk_entry_set_placeholder_text(GTK_ENTRY(state->search_entry),
                                    "Type to search commands (Esc to cancel)...");
-    gtk_box_pack_start(GTK_BOX(box), state->search_entry, FALSE, FALSE, 0);
+    gtk_widget_set_hexpand(state->search_entry, TRUE);
+
+    GtkWidget *exit_button = gtk_button_new_with_label("Exit");
+    gtk_widget_set_tooltip_text(exit_button, "Close Command Palette");
+    g_signal_connect(exit_button, "clicked", G_CALLBACK(on_exit_button_clicked), state->window);
+
+    gtk_box_pack_start(GTK_BOX(search_row), state->search_entry, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(search_row), exit_button, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), search_row, FALSE, FALSE, 0);
     g_signal_connect(state->search_entry, "search-changed", G_CALLBACK(search_changed), state);
 
     /* Scrolled window for list */

@@ -439,6 +439,44 @@ static gboolean launch_settings_event(GtkWidget *widget, GdkEventButton *event, 
 }
 
 /**
+ * Launch the clipboard manager and close the tools window.
+ */
+static void launch_clipboard(GtkButton *button, gpointer window)
+{
+    (void)button;
+    (void)window;
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("./blackline-clipboard", "blackline-clipboard", NULL);
+        exit(0);
+    } else if (pid > 0) {
+        close_tools_window();
+    }
+}
+
+/**
+ * Event handler for launching the clipboard manager.
+ *
+ * @return TRUE to indicate event was handled.
+ */
+static gboolean launch_clipboard_event(GtkWidget *widget, GdkEventButton *event, gpointer window)
+{
+    (void)widget;
+    (void)event;
+    (void)window;
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("./blackline-clipboard", "blackline-clipboard", NULL);
+        exit(0);
+    } else if (pid > 0) {
+        close_tools_window();
+    }
+    return TRUE;
+}
+
+/**
  * Window state change handler for restore events.
  *
  * @return FALSE to allow further signal propagation.
@@ -458,6 +496,7 @@ static ToolItem static_tools[] =
     {"Calculator", "🔢", launch_calculator, launch_calculator_event, NULL},
     {"System Monitor", "📊", launch_system_monitor, launch_system_monitor_event, NULL},
     {"Settings", "⚙️", launch_settings, launch_settings_event, NULL},
+    {"Clipboard", "📋", launch_clipboard, launch_clipboard_event, NULL},
     {"Image", "🖼️", launch_image_viewer, launch_image_viewer_event, NULL},
     {"VoidFox", "🌐", launch_web_browser, launch_web_browser_event, NULL},
     {"Firefox", "🦊", launch_firefox_wrapper, launch_firefox_wrapper_event, NULL}
